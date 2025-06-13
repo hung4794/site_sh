@@ -7,6 +7,7 @@
 我目前已將專案主力倉庫搬遷至 GitHub，原本長期維護於 GitLab（提交數已累積超過 200 次以上），目前此 GitHub 倉庫屬於新建立版本，因此提交紀錄較少屬正常情況。
 
 🔗 原始 GitLab 倉庫：https://gitlab.com/gebu8f/sh
+
 🔗 GitHub 倉庫：https://github.com/gebu8f8/site_sh
 
 ---
