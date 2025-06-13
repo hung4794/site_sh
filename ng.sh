@@ -400,9 +400,9 @@ default(){
   case "$system" in
   1|2)
     rm -f /etc/nginx/conf.d/default.conf
-    wget -O /etc/nginx/conf.d/default.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/default_system
+    wget -O /etc/nginx/conf.d/default.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/default_system
     rm -f /etc/nginx/nginx.conf
-    wget -O /etc/nginx/nginx.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/nginx.conf
+    wget -O /etc/nginx/nginx.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/nginx.conf
     id -u nginx &>/dev/null || useradd -r -s /sbin/nologin -M nginx
     systemctl restart openresty
     ;;
@@ -422,9 +422,9 @@ default(){
     # download default
     rm -f /etc/nginx/conf.d/default.conf
     rm -f /etc/nginx/nginx.conf
-    wget -O /etc/nginx/nginx.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/nginx.conf
+    wget -O /etc/nginx/nginx.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/nginx.conf
     sed -i 's|^#\s*pid\s\+/run/nginx.pid;|pid /run/nginx.pid;|' /etc/nginx/nginx.conf
-    wget -O /etc/nginx/conf.d/default.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/default_system
+    wget -O /etc/nginx/conf.d/default.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/default_system
     id -u nginx &>/dev/null || adduser -D -H -s /sbin/nologin nginx
     rc-service nginx restart
     ;;
@@ -1223,7 +1223,7 @@ setup_site() {
     1|2)
       case $type in
         html|php|www|flarum)
-          local conf_url="https://gitlab.com/gebu8f/sh/-/raw/main/nginx/domain_${type}.conf"
+          local conf_url="https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/donain_${type}.conf"
           local conf_path="/etc/nginx/conf.d/$domain.conf"
           wget -O "$conf_path" "$conf_url"
           sed -i "s|domain|$domain|g" "$conf_path"
@@ -1241,7 +1241,7 @@ setup_site() {
           local target_url=$3
           local target_protocol=$4
           local target_port=$5
-          wget -O /etc/nginx/conf.d/$domain.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/domain_proxy.conf
+          wget -O /etc/nginx/conf.d/$domain.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/domain_proxy.conf
           sed -i "s|proxy_pass host:port;|proxy_pass $target_protocol://$target_url:$target_port;|g" /etc/nginx/conf.d/$domain.conf
           sed -i "s|domain|$domain|g" /etc/nginx/conf.d/$domain.conf
           sed -i "s|main|$escaped_cert|g" /etc/nginx/conf.d/$domain.conf
@@ -1260,7 +1260,7 @@ setup_site() {
     3)
       case $type in
         php|flarum|www|html)
-          local conf_url="https://gitlab.com/gebu8f/sh/-/raw/main/nginx/domain_${type}.conf"
+          local conf_url="https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/donain_${type}.conf"
           local conf_path="/etc/nginx/conf.d/$domain.conf"
           wget -O $conf_path $conf_url
           sed -i "s|domain|$domain|g" "$conf_path"
@@ -1277,7 +1277,7 @@ setup_site() {
           local target_url=$3
           local target_protocol=$4
           local target_port=$5
-          wget -O /etc/nginx/conf.d/$domain.conf https://gitlab.com/gebu8f/sh/-/raw/main/nginx/domain_proxy.conf
+          wget -O /etc/nginx/conf.d/$domain.conf https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/domain_proxy.conf
           sed -i "s|proxy_pass http://host:port;|proxy_pass $target_protocol://$target_url:$target_port;|g" /etc/nginx/conf.d/$domain.conf
           sed -i "s|domain|$domain|g" /etc/nginx/conf.d/$domain.conf
           sed -i "s|main|$escaped_cert|g" /etc/nginx/conf.d/$domain.conf
