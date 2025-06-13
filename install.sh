@@ -4,7 +4,7 @@ install_path="/usr/local/bin/site"
 run_cmd="site"
 
 echo "正在下載腳本..."
-wget -qO "$install_path" https://gitlab.com/gebu8f/sh/-/raw/main/nginx/ng.sh || {
+wget -qO "$install_path" https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/ng.sh || {
   echo "下載失敗，請檢查網址或網路狀態。"
   exit 1
 }
