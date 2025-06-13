@@ -45,6 +45,6 @@
 
 ## 安裝與使用
 ```
-bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/nginx/install.sh)
+bash <(curl -sL https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/install.sh)
 ```
 之後即可用site使用之
