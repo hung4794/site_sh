@@ -2,11 +2,12 @@
 
 這是一套純本地部署（非 Docker）的 Nginx + SSL + WordPress 自動化建站腳本，專為 VPS 多系統環境設計，支援 **Debian / CentOS / Alpine Linux** 三大主流系統，讓你一鍵完成完整建站流程。
 
-# 備註
+# 📌 備註
 
-我入住github了,之前都是在gitlab：[網址](https://gitlab.com/Gebu8f64795)
+我目前已將專案主力倉庫搬遷至 GitHub，原本長期維護於 GitLab（提交數已累積超過 200 次以上），目前此 GitHub 倉庫屬於新建立版本，因此提交紀錄較少屬正常情況。
 
-所以這是從gitlab 搬移的,提交數會很少是正常的,在gitlab是200+提交
+🔗 原始 GitLab 倉庫：https://gitlab.com/gebu8f/sh
+🔗 GitHub 倉庫：https://github.com/gebu8f8/site_sh
 
 ---
 
