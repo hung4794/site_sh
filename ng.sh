@@ -766,7 +766,7 @@ php_install() {
       fi
 
       apt install -y php$phpver php$phpver-fpm php$phpver-mysql php$phpver-curl php$phpver-gd \
-        php$phpver-xml php$phpver-mbstring php$phpver-zip php$phpver-intl php$phpver-bcmath php$phpver-imagick unzip
+        php$phpver-xml php$phpver-mbstring php$phpver-zip php$phpver-intl php$phpver-bcmath php$phpver-imagick unzip redis
 
       systemctl enable --now php$phpver-fpm
       ;;
@@ -799,7 +799,7 @@ php_install() {
 
       yum module reset php -y
       yum module enable php:remi-$phpver -y
-      yum install -y php php-fpm php-mysqlnd php-curl php-gd php-xml php-mbstring php-zip php-intl php-bcmath php-pecl-imagick unzip
+      yum install -y php php-fpm php-mysqlnd php-curl php-gd php-xml php-mbstring php-zip php-intl php-bcmath php-pecl-imagick unzip redis
 
       systemctl enable --now php-fpm
       ;;
@@ -851,7 +851,7 @@ php_install() {
 
       apk add php$shortver php$shortver-fpm php$shortver-mysqli php$shortver-curl \
         php$shortver-gd php$shortver-xml php$shortver-mbstring php$shortver-zip \
-        php$shortver-intl php$shortver-bcmath php$shortver-pecl-imagick unzip || {
+        php$shortver-intl php$shortver-bcmath php$shortver-pecl-imagick unzip redis || {
           echo "❌ 安裝失敗，請確認版本是否存在於 Edge 社群源。"
           return 1
         }
