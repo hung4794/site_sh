@@ -2073,13 +2073,17 @@ EOF
     /ssl_ca/open_port.sh del 80
     service openresty start || service nginx start
     mkdir -p /ssl_ca/hooks
-    echo -e '#!/bin/bash
+    cat > /ssl_ca/hooks/certbot_pre.sh <<'EOF'
+#!/bin/bash
 service openresty stop 2>/dev/null || service nginx stop 2>/dev/null
-/ssl_ca/open_port.sh add 80' > /ssl_ca/hooks/certbot_pre.sh
-    echo -e '#!/bin/bash
+/ssl_ca/open_port.sh add 80
+EOF
+    cat > /ssl_ca/hooks/certbot_post.sh <<EOF
+#!/bin/bash
 /ssl_ca/open_port.sh del 80
 service openresty start 2>/dev/null || service nginx start 2>/dev/null
-'"$reload_cmd" > /ssl_ca/hooks/certbot_post.sh
+$reload_cmd
+EOF
     chmod +x /ssl_ca/hooks/certbot_*.sh
     if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
     (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --pre-hook \"/ssl_ca/hooks/certbot_pre.sh\" --post-hook \"/ssl_ca/hooks/certbot_post.sh\"") | crontab -
