@@ -1,8 +1,5 @@
 # Nginx 全自動建站工具（支援 Certbot + WordPress）By gebu8f
 
-# 公告
-已經測試完畢，明天更新v5.1.0
-
 # 介紹
 
 這是一套純本地部署（非 Docker）的 Nginx + SSL + WordPress 自動化建站腳本，專為 VPS 多系統環境設計，支援 **Debian / CentOS / Alpine Linux** 三大主流系統，讓你一鍵完成完整建站流程。
