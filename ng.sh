@@ -2836,5 +2836,6 @@ while true; do
       ;;
     *)
       echo "無效選擇。"
+      ;;
   esac
 done
