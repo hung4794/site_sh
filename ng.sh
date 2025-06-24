@@ -2722,7 +2722,7 @@ show_menu(){
 
 case "$1" in
   --version|-V)
-    echo "站點管理器版本 5.2.0"
+    echo "站點管理器版本 5.2.1"
     exit 0
     ;;
 esac
