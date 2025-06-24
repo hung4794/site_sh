@@ -1585,6 +1585,7 @@ restart_nginx_openresty() {
   fi
 }
 
+
 setup_site_http2(){
   local domain=$1
   local http3=$(check_http3_support)
@@ -1953,6 +1954,91 @@ toggle_httpguard_module() {
   fi
 }
 
+update_certbot(){
+  case $system in
+    1)
+      snap refresh certbot > /dev/null 2>&1
+      ;;
+    2)
+      python3 -m pip install --upgrade certbot certbot-nginx certbot-dns-cloudflare --break-system-packages > /dev/null 2>&1
+      ;;
+    3)
+      python3 -m pip install --upgrade certbot certbot-nginx certbot-dns-cloudflare --break-system-packages > /dev/null 2>&1
+      ;;
+  esac
+}
+update_script() {
+  local download_url="https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/ng.sh"
+  local temp_path="/tmp/ng.sh"
+  local current_script="/usr/local/bin/site"
+  local current_path="$0"
+
+  echo "🔍 正在檢查更新..."
+  wget -q "$download_url" -O "$temp_path"
+  if [ $? -ne 0 ]; then
+    echo "❌ 無法下載最新版本，請檢查網路連線。"
+    return
+  fi
+
+  # 比較檔案差異
+  if [ -f "$current_script" ]; then
+    if diff "$current_script" "$temp_path" >/dev/null; then
+      echo "✅ 腳本已是最新版本，無需更新。"
+      rm -f "$temp_path"
+      return
+    fi
+    echo "📦 檢測到新版本，正在更新..."
+    cp "$temp_path" "$current_script" && chmod +x "$current_script"
+    if [ $? -eq 0 ]; then
+      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
+      sleep 1
+      exec "$current_script"
+    else
+      echo "❌ 更新失敗，請確認權限。"
+    fi
+  else
+    # 非 /usr/local/bin 執行時 fallback 為當前檔案路徑
+    if diff "$current_path" "$temp_path" >/dev/null; then
+      echo "✅ 腳本已是最新版本，無需更新。"
+      rm -f "$temp_path"
+      return
+    fi
+    echo "📦 檢測到新版本，正在更新..."
+    cp "$temp_path" "$current_path" && chmod +x "$current_path"
+    if [ $? -eq 0 ]; then
+      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
+      sleep 1
+      exec "$current_path"
+    else
+      echo "❌ 更新失敗，請確認權限。"
+    fi
+  fi
+
+  rm -f "$temp_path"
+}
+uninstall_nginx(){
+  check_web_server
+  if [ $openresty -eq 1 ]; then
+    case $system in
+    1) apt remove openresty ;;
+    2) yum remove openresty ;;
+    3) apk del openresty ;;
+    esac
+  elif [ $nginx -eq 1 ]; then
+    case $system in
+    1) apt remove nginx ;;
+    2) yum remove nginx ;;
+    3)
+      apk del nginx
+      rm -rf /etc/init.d/nginx
+    ;;
+    esac
+    rm -rf /etc/nginx
+    rm -rf /usr/local/nginx
+    rm -rf /usr/local/sbin/nginx
+  fi
+}
+
 
 
 wordpress_site() {
@@ -2037,69 +2123,6 @@ wordpress_site() {
   chown -R $ngx_user:$ngx_user "/var/www/$domain"
   setup_site "$domain" php
   echo "WordPress 網站 $domain 建立完成！請瀏覽 https://$domain 開始安裝流程。"
-}
-
-update_certbot(){
-  case $system in
-    1)
-      snap refresh certbot > /dev/null 2>&1
-      ;;
-    2)
-      python3 -m pip install --upgrade certbot certbot-nginx certbot-dns-cloudflare --break-system-packages > /dev/null 2>&1
-      ;;
-    3)
-      python3 -m pip install --upgrade certbot certbot-nginx certbot-dns-cloudflare --break-system-packages > /dev/null 2>&1
-      ;;
-  esac
-}
-update_script() {
-  local download_url="https://raw.githubusercontent.com/gebu8f8/site_sh/refs/heads/main/ng.sh"
-  local temp_path="/tmp/ng.sh"
-  local current_script="/usr/local/bin/site"
-  local current_path="$0"
-
-  echo "🔍 正在檢查更新..."
-  wget -q "$download_url" -O "$temp_path"
-  if [ $? -ne 0 ]; then
-    echo "❌ 無法下載最新版本，請檢查網路連線。"
-    return
-  fi
-
-  # 比較檔案差異
-  if [ -f "$current_script" ]; then
-    if diff "$current_script" "$temp_path" >/dev/null; then
-      echo "✅ 腳本已是最新版本，無需更新。"
-      rm -f "$temp_path"
-      return
-    fi
-    echo "📦 檢測到新版本，正在更新..."
-    cp "$temp_path" "$current_script" && chmod +x "$current_script"
-    if [ $? -eq 0 ]; then
-      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
-      sleep 1
-      exec "$current_script"
-    else
-      echo "❌ 更新失敗，請確認權限。"
-    fi
-  else
-    # 非 /usr/local/bin 執行時 fallback 為當前檔案路徑
-    if diff "$current_path" "$temp_path" >/dev/null; then
-      echo "✅ 腳本已是最新版本，無需更新。"
-      rm -f "$temp_path"
-      return
-    fi
-    echo "📦 檢測到新版本，正在更新..."
-    cp "$temp_path" "$current_path" && chmod +x "$current_path"
-    if [ $? -eq 0 ]; then
-      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
-      sleep 1
-      exec "$current_path"
-    else
-      echo "❌ 更新失敗，請確認權限。"
-    fi
-  fi
-
-  rm -f "$temp_path"
 }
 
 # 菜單
@@ -2680,7 +2703,7 @@ show_menu(){
   echo "-------------------"
   echo "站點管理器"
   echo ""
-  echo -e "${YELLOW}i. 安裝或重裝 Nginx / OpenResty${RESET}"
+  echo -e "${YELLOW}i. 安裝 Nginx / OpenResty       r. 解除安裝 Nginx / OpenResty${RESET}"
   echo ""
   echo "1. 新增站點           2. 刪除站點"
   echo ""
@@ -2807,6 +2830,9 @@ while true; do
       echo "更新腳本"
       echo "------------------------"
       update_script
+      ;;
+    r)
+      uninstall_nginx
       ;;
     *)
       echo "無效選擇。"
