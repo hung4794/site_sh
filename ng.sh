@@ -2034,8 +2034,10 @@ uninstall_nginx(){
     ;;
     esac
     rm -rf /etc/nginx
-    rm -rf /usr/local/nginx
-    rm -rf /usr/local/sbin/nginx
+    local nginx_path=$(command -v nginx)
+    if [ -n $nginx_path ]; then
+      rm -rf $nginx_path
+    fi
   fi
 }
 
