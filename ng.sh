@@ -2417,7 +2417,9 @@ menu_ssl_apply() {
     certbot certonly \
       --dns-cloudflare \
       --dns-cloudflare-credentials "$cred_file" \
+      --dns-cloudflare-propagation-seconds 60 \
       --email "$selected_email" \
+      --key-type rsa
       --agree-tos \
       --server "$server_url" \
       --non-interactive \
@@ -2453,6 +2455,7 @@ menu_ssl_apply() {
       --manual \
       --preferred-challenges "dns-01" \
       --email "$selected_email" \
+      --key-type rsa
       --agree-tos \
       --server "$server_url" \
       "${domain_args[@]}"
@@ -2515,6 +2518,7 @@ EOF
       --webroot \
       --webroot-path /var/www/acme \
       --email "$selected_email" \
+      --key-type rsa
       --agree-tos \
       --server "$server_url" \
       --non-interactive \
