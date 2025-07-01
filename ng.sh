@@ -762,7 +762,7 @@ flarum_setup() {
 
   db_name="flarum_${domain//./_}"
   db_user="${db_name}_user"
-  db_pass=$(openssl rand -base64 12)
+  db_pass=$(openssl rand -hex 12)
 
   $mysql_cmd -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
   $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
@@ -2747,7 +2747,7 @@ show_menu(){
 
 case "$1" in
   --version|-V)
-    echo "站點管理器版本 5.2.2"
+    echo "站點管理器版本 5.3.0"
     exit 0
     ;;
 esac
