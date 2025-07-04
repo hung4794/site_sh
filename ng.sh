@@ -1,4 +1,4 @@
-  #!/bin/bash
+#!/bin/bash
 
 # 檢查是否以root權限運行
 if [ "$(id -u)" -ne 0 ]; then
