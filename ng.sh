@@ -7,6 +7,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 
+# 版本
+version="6.1.3"
+
+
 # 顏色定義
 RED='\033[0;31m'     # ❌ 錯誤用紅色
 GREEN='\033[0;32m'   # ✅ 成功用綠色
@@ -4150,7 +4154,7 @@ show_menu(){
 
 case "$1" in
   --version|-V)
-    echo "站點管理器版本 6.1.3"
+    echo "站點管理器版本 $version"
     exit 0
     ;;
 esac
