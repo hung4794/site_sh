@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.1.3"
+version="6.2.0"
 
 
 # 顏色定義
@@ -306,6 +306,10 @@ check_system(){
     system=1
   elif command -v yum >/dev/null 2>&1; then
     system=2
+    if grep -q -Ei "release 7|release 8" /etc/redhat-release; then
+      echo -e "${RED}⚠️ 不支援 CentOS 7 或 CentOS 8，請升級至 9 系列 (Rocky/Alma/CentOS Stream)${RESET}"
+      exit 1
+    fi
   elif command -v apk >/dev/null 2>&1; then
     system=3
    else
@@ -1851,13 +1855,17 @@ install_nginx(){
   1)
     apt update
     apt install -y curl gnupg2 ca-certificates lsb-release
-        local os=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+    local os=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+    local codename=$(lsb_release -sc)
     curl -s https://openresty.org/package/pubkey.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/openresty.gpg
     if [[ $os == "debian" ]]; then
-          echo "deb http://openresty.org/package/debian $(lsb_release -sc) openresty" | tee /etc/apt/sources.list.d/openresty.list
+      echo "deb http://openresty.org/package/debian $(lsb_release -sc) openresty" | tee /etc/apt/sources.list.d/openresty.list
+    elif [[ $os == "kali" ]]; then
+      codename="bookworm"
+      echo "deb http://openresty.org/package/debian $codename openresty" | tee /etc/apt/sources.list.d/openresty.list
     elif [[ $os == "ubuntu" ]]; then
       echo "deb http://openresty.org/package/ubuntu $(lsb_release -sc) openresty" | tee /etc/apt/sources.list.d/openresty.list
-        fi
+    fi
     apt update
     apt install openresty -y
     rm -rf /etc/nginx
@@ -2043,10 +2051,16 @@ php_install() {
   case $system in
     1)
       local os=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+      local codename=$(lsb_release -sc)
       apt update
       apt install -y software-properties-common ca-certificates lsb-release gnupg curl
-
-      if [[ $os == "debian" ]]; then
+      
+      if [[ $os == "kali" ]]; then
+        # Kali rolling 沒有對應的 Sury 名稱，強制指定為 bookworm
+        codename="bookworm"
+        curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/ondrej_php.gpg
+        echo "deb https://packages.sury.org/php/ $codename main" > /etc/apt/sources.list.d/php.list
+      elif [[ $os == "debian" ]]; then
         curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/ondrej_php.gpg
         echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
       elif [[ $os == "ubuntu" ]]; then
