@@ -80,7 +80,7 @@ jobs:
               echo "diff_text=(未變更 ng.sh)" >> $GITHUB_ENV
               echo "skip_ai=true" >> $GITHUB_ENV
             else
-              diff_text=$(git diff HEAD~1 HEAD -- ng.sh)
+              diff_text=$(git diff HEAD~1 HEAD -- ng.sh | grep -vE '^[+-]version=')
               echo "diff_text<<EOF" >> $GITHUB_ENV
               echo "$diff_text" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
