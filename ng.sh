@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.2.0"
+version="6.3.0"
 
 
 # 顏色定義
@@ -1465,9 +1465,12 @@ flarum_setup() {
   fi
 
   if ! command -v mysql &>/dev/null; then
-    echo "MySQL 未安裝，請先安裝 MySQL。"
-    return 1
+    echo "MySQL 未安裝，正在安裝..."
+    bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+    myadmin install
+    read -p "操作完成，請按任意鍵繼續" -n1
   fi
+  echo
 
   if ! command -v composer &>/dev/null; then
     echo "正在安裝 Composer..."
@@ -4015,6 +4018,8 @@ menu_php() {
     echo "-------------------"
     echo "PHP管理"
     echo ""
+    echo -e "${YELLOW}m. 安裝或管理mysql${RESET}"
+    echo ""
     echo "1. 安裝php              2. 升級/降級php"
     echo ""
     echo "3. 新增普通PHP站點      4. WordPress管理"
@@ -4134,7 +4139,10 @@ menu_php() {
       r)
         php_fix
         ;;
-        
+      m)
+        wget -qO "/usr/local/bin/myadmin" https://gitlab.com/gebu8f/sh/-/raw/main/db/mysql.sh
+        myadmin
+        ;;
       0)
         break
         ;;
