@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.3.0"
+version="6.3.1"
 
 
 # 顏色定義
@@ -4140,7 +4140,7 @@ menu_php() {
         php_fix
         ;;
       m)
-        wget -qO "/usr/local/bin/myadmin" https://gitlab.com/gebu8f/sh/-/raw/main/db/mysql.sh
+        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
         myadmin
         ;;
       0)
