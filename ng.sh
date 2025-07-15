@@ -4142,8 +4142,10 @@ menu_php() {
       m)
         if ! command -v mysql >/dev/null 2>&1; then
           bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+          myadmin
         elif ! command -v myadmin >/dev/null 2>&1; then
           bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+          myadmin
         else
           myadmin
         fi
