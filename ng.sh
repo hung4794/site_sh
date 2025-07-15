@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.3.1"
+version="6.3.2"
 
 
 # 顏色定義
@@ -4140,8 +4140,13 @@ menu_php() {
         php_fix
         ;;
       m)
-        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
-        myadmin
+        if ! command -v mysql >/dev/null 2>&1; then
+          bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+        elif ! command -v myadmin >/dev/null 2>&1; then
+          bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+        else
+          myadmin
+        fi
         ;;
       0)
         break
