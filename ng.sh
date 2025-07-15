@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.3.2"
+version="6.4.0"
 
 
 # 顏色定義
@@ -1357,28 +1357,7 @@ deploy_or_remove_theme() {
 
 enable_mysql_remote_root() {
   echo "🔧 啟用 MySQL / MariaDB root 遠端登入..."
-
-  # 嘗試以不同方式取得 mysql 命令權限
-  local mysql_cmd=""
-  local mysql_root_pass=""
-
-  if mysql -uroot -e ";" &>/dev/null; then
-    mysql_cmd="mysql -uroot"
-  elif [[ -f /etc/mysql-pass.conf ]]; then
-    mysql_root_pass=$(cat /etc/mysql-pass.conf)
-    if mysql -uroot -p"$mysql_root_pass" -e ";" &>/dev/null; then
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    fi
-  else
-    read -s -p "請輸入 MySQL root 密碼：" mysql_root_pass
-    echo
-    if mysql -uroot -p"$mysql_root_pass" -e ";" &>/dev/null; then
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    else
-      echo "❌ 無法登入 MySQL，請確認密碼正確"
-      return 1
-    fi
-  fi
+  local mysql_cmd=$(get_mysql_command)
 
   # 確認版本
   local version=$($mysql_cmd -N -e "SELECT VERSION();" | head -n 1)
@@ -1399,7 +1378,7 @@ enable_mysql_remote_root() {
 
   echo "✅ bind-address 已修改為 0.0.0.0"
 
-  systemctl restart mysql || systemctl restart mariadb
+  service mysql restart || service mariadb restart
   echo "🔄 資料庫已重新啟動"
 
   # 檢查是否已有 root@%
@@ -1469,6 +1448,8 @@ flarum_setup() {
     bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
     myadmin install
     read -p "操作完成，請按任意鍵繼續" -n1
+    else
+      get_mysql_command
   fi
   echo
 
@@ -1496,25 +1477,11 @@ flarum_setup() {
   }
 
   # MySQL 自動登入邏輯
-  mysql_cmd="mysql -uroot"
-  if ! $mysql_cmd -e ";" &>/dev/null; then
-    if [ -f /etc/mysql-pass.conf ]; then
-      mysql_root_pass=$(cat /etc/mysql-pass.conf)
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    else
-      read -s -p "請輸入 MySQL root 密碼：" mysql_root_pass
-      echo
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    fi
-    if ! $mysql_cmd -e ";" &>/dev/null; then
-      echo "無法登入 MySQL，請確認密碼正確。"
-      return 1
-    fi
-  fi
+  local mysql_cmd=$(mysql_command)
 
-  db_name="flarum_${domain//./_}"
-  db_user="${db_name}_user"
-  db_pass=$(openssl rand -hex 12)
+  local db_name="flarum_${domain//./_}"
+  local db_user="${db_name}_user"
+  local db_pass=$(openssl rand -hex 12)
 
   $mysql_cmd -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
   $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
@@ -1630,6 +1597,57 @@ get_nginx_run_user() {
   else
     echo "$user"
   fi
+}
+
+get_mysql_command() {
+    local mysql_command=""
+    local mysql_root_pw=""
+    local pass_file="/etc/mysql-pass.conf"
+
+    # 嘗試無密碼登入
+    if mysql -u root -e "SELECT 1;" &>/dev/null; then
+        mysql_command="mysql -u root"
+        echo "$mysql_command"
+        return 0
+    fi
+
+    # 嘗試讀取 /etc/mysql-pass.conf
+    if [ -f "$pass_file" ]; then
+        mysql_root_pw=$(cat "$pass_file")
+        if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
+            mysql_command="mysql -u root -p$mysql_root_pw"
+            >&2 echo "✅ 使用 /etc/mysql-pass.conf 登入 MySQL"
+            echo "$mysql_command"
+            return 0
+        else
+            >&2 echo "⚠️ /etc/mysql-pass.conf 內的密碼無效，將要求重新輸入。"
+        fi
+    fi
+
+    # 不存在 conf 或無效，請使用者輸入
+    while true; do
+        read -s -p "請輸入 MySQL root 密碼：" mysql_root_pw
+        echo
+        if [ -z "$mysql_root_pw" ]; then
+            >&2 echo "❌ 密碼不能為空，請再試一次。"
+            continue
+        fi
+
+        if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
+            mysql_command="mysql -u root -p$mysql_root_pw"
+            >&2 echo "✅ 密碼正確，已成功登入 MySQL"
+
+            # 寫入檔案
+            echo "$mysql_root_pw" > "$pass_file"
+            chmod 600 "$pass_file"
+            >&2 echo "✅ 已將 root 密碼寫入 $pass_file (權限 600)"
+
+            echo "$mysql_command"
+            return 0
+        else
+            >&2 echo "❌ 密碼錯誤，請再試一次。"
+        fi
+    done
 }
 
 
@@ -2011,6 +2029,7 @@ install_phpmyadmin() {
   if [[ $confirm == y || $confirm == "" ]]; then
     read -p "請輸入域名：" domain
     docker run -d \
+    --restart always \
     --name myadmin \
     -p ${port}:80 \
     -e PMA_HOST=host.docker.internal:172.17.0.1 \
@@ -3572,6 +3591,7 @@ wordpress_site() {
   local MY_IP=$(curl -s https://api64.ipify.org)
   local HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" --max-time 3 https://wordpress.org)
   local ngx_user=$(get_nginx_run_user)
+  local mysql_command=$(get_mysql_command)
 
   if [[ "$HTTP_CODE" == "200" ]]; then
     echo "您的IP地址支持訪問 WordPress。"
@@ -3587,8 +3607,9 @@ wordpress_site() {
     echo "MySQL 未安裝，正在安裝..."
     bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
     myadmin install
-    
     read -p "操作完成，請按任意鍵繼續" -n1
+  else
+    get_mysql_command
   fi
   echo
   read -p "請輸入您的 WordPress 網址（例如 wp.example.com）：" domain
@@ -3609,25 +3630,12 @@ wordpress_site() {
   }
 
   # MySQL 自動登入邏輯
-  mysql_cmd="mysql -uroot"
-  if ! $mysql_cmd -e ";" &>/dev/null; then
-    if [ -f /etc/mysql-pass.conf ]; then
-      mysql_root_pass=$(cat /etc/mysql-pass.conf)
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    else
-      read -s -p "請輸入 MySQL root 密碼：" mysql_root_pass
-      echo
-      mysql_cmd="mysql -uroot -p$mysql_root_pass"
-    fi
-    if ! $mysql_cmd -e ";" &>/dev/null; then
-      echo "無法登入 MySQL，請確認密碼正確。"
-      return 1
-    fi
-  fi
+  local mysql_cmd=$(mysql_command)
+  
   read -p "是否還原現有的wp文件？(Y/N): " restore_file
   restore_file=${restore_file,,}
   if [[ $restore_file == "y" || $restore_file == "" ]]; then
-    restore_wp_file "$domain" wp
+    restore_site_files wp "$domain"
     return 0
   fi
   # 下載 WordPress 並部署
@@ -3636,9 +3644,9 @@ wordpress_site() {
   unzip /tmp/wordpress.zip -d /tmp
   mv /tmp/wordpress/* "/var/www/$domain/"
 
-  db_name="wp_${domain//./_}"
-  db_user="${db_name}_user"
-  db_pass=$(openssl rand -hex 12)
+  local db_name="wp_${domain//./_}"
+  local db_user="${db_name}_user"
+  local db_pass=$(openssl rand -hex 12)
 
   $mysql_cmd -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
   $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
@@ -3657,7 +3665,7 @@ wordpress_site() {
   read -p "是否要導入現有 SQL 資料？(Y/N): " import_sql
   import_sql=${import_sql,,}
   if [[ $import_sql == "y" || $import_sql == "" ]]; then
-    restore_wp_db "$db_name"
+    restore_site_db wp $domain
     return 0
   fi
   echo "WordPress 網站 $domain 建立完成！請瀏覽 https://$domain 開始安裝流程。"
