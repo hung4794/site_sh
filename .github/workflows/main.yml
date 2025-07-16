@@ -127,6 +127,21 @@ jobs:
           echo "最終版本號: ${{ steps.read_version.outputs.version_final }}"
           echo "$SUMMARY_CONTENT"
 
+      - name: Create git tag
+        if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
+        run: |  
+          git tag ${{ steps.read_version.outputs.version_final }}
+          git push origin ${{ steps.read_version.outputs.version_final }}
+  
+      - name: Create GitHub Release
+        if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.read_version.outputs.version_final }}
+          name: ${{ steps.read_version.outputs.version_final }}
+          body: ${{ env.summary }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Telegram Message
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
@@ -146,21 +161,3 @@ jobs:
             --data-urlencode "chat_id=$TG_CHAT_ID" \
             --data-urlencode "text=$MESSAGE_BODY" \
             --data-urlencode "parse_mode=Markdown"
-
-
-
-      - name: Create git tag
-        if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
-        run: |
-          git tag ${{ steps.read_version.outputs.version_final }}
-          git push origin ${{ steps.read_version.outputs.version_final }}
-
-      - name: Create GitHub Release
-        if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.read_version.outputs.version_final }}
-          name: ${{ steps.read_version.outputs.version_final }}
-          body: ${{ env.summary }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
