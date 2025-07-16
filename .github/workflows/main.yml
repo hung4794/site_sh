@@ -121,27 +121,32 @@ jobs:
 
       - name: Show Release Note
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true'
+        env:
+          SUMMARY_CONTENT: ${{ env.summary }}
         run: |
           echo "最終版本號: ${{ steps.read_version.outputs.version_final }}"
-          echo "${{ env.summary }}"
+          echo "$SUMMARY_CONTENT"
+
 
       - name: Send Telegram Message
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          FINAL_VERSION: ${{ steps.read_version.outputs.version_final }}
+          SUMMARY_CONTENT: ${{ env.summary }}
         run: |
-          # 將版本號和 summary 組合在一起
-          MESSAGE_BODY="${{ steps.read_version.outputs.version_final }}
+          # 使用步驟級別的環境變數來組合訊息，這樣最安全
+          MESSAGE_BODY="$FINAL_VERSION
 
-          ${{ env.summary }}"
-
+          $SUMMARY_CONTENT"
+          
           # 使用 curl 的 --data-urlencode 來安全地傳遞文字
-          # 它會自動處理換行和特殊字元，比手動拼接更安全
           curl -s -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
             --data-urlencode "chat_id=$TG_CHAT_ID" \
             --data-urlencode "text=$MESSAGE_BODY" \
             --data-urlencode "parse_mode=Markdown"
+
 
 
       - name: Create git tag
