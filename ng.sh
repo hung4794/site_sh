@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.4.1"
+version="6.5.0"
 
 
 # 顏色定義
@@ -3769,8 +3769,10 @@ menu_add_sites(){
 }
 
 menu_del_sites(){
-
-  read -p "請輸入要刪除的網址：" domain
+  local domain=$1
+  if [ -z "$domain" ]; then
+    read -p "請輸入要刪除的網址：" domain
+  fi
   domain="$(echo $domain | xargs)"  # 去除多餘空白
   local conf_file=$(detect_conf_path)/$domain.conf
 
@@ -4043,8 +4045,6 @@ menu_php() {
     echo "-------------------"
     echo "PHP管理"
     echo ""
-    echo -e "${YELLOW}m. 安裝或管理mysql${RESET}"
-    echo ""
     echo "1. 安裝php              2. 升級/降級php"
     echo ""
     echo "3. 新增普通PHP站點      4. WordPress管理"
@@ -4164,17 +4164,6 @@ menu_php() {
       r)
         php_fix
         ;;
-      m)
-        if ! command -v mysql >/dev/null 2>&1; then
-          bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
-          myadmin
-        elif ! command -v myadmin >/dev/null 2>&1; then
-          bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
-          myadmin
-        else
-          myadmin
-        fi
-        ;;
       0)
         break
         ;;
@@ -4199,11 +4188,13 @@ show_menu(){
   echo ""
   echo "5. 切換 Certbot 廠商  6. PHP 管理"
   echo ""
-  echo "7. 修復Cloudflare 525錯誤"
+  echo "7. 修復Cloudflare 525錯誤    8. MYSQL安裝及管理"
+  echo ""
+  echo "9. Docker安裝及管理"
   echo ""
   echo "u. 更新腳本           0. 離開"
   echo "-------------------"
-  echo -n -e "\033[1;33m請選擇操作 [1-6 / i u 0]: \033[0m"
+  echo -n -e "\033[1;33m請選擇操作 [1-9 / i u 0]: \033[0m"
 }
 
 case "$1" in
@@ -4234,17 +4225,7 @@ case "$1" in
 
     echo "正在處理站點: $domain (類型: $site_type)"
 
-    # 申請 SSL 憑證
-    if ssl_apply "$domain"; then
-      echo "SSL 申請成功，驗證憑證..."
-      check_cert "$domain" || {
-        echo "憑證驗證失敗，中止建立站點"
-        exit 1
-      }
-    else
-      echo "SSL 申請失敗，中止建立站點"
-      exit 1
-    fi
+    
 
     case "$site_type" in
       html|flarum|php)
@@ -4259,10 +4240,30 @@ case "$1" in
           echo "proxy 類型需要提供 target_url protocol port"
           exit 1
         fi
+        
+        # 自動申請 SSL（若不存在）
+        check_cert "$domain" || {
+          echo "未偵測到 Let Encrypt 憑證，嘗試自動申請..."
+          if ssl_apply "$domain"; then
+            echo "申請成功，重新驗證憑證..."
+            check_cert "$domain" || {
+              echo "申請成功但仍無法驗證憑證，中止建立站點"
+              return 1
+            }
+          else
+              echo "SSL 申請失敗，中止建立站點"
+              return 1
+          fi
+        }
 
         setup_site "$domain" proxy "$target_url" "$target_proto" "$target_port"
+        exit 0
         ;;
     esac
+    ;;
+  del)
+    domain="$2"
+    menu_del_sites "$domain"
     exit 0
     ;;
 esac
@@ -4309,6 +4310,24 @@ while true; do
       ;;
     7)
       clean_nginx_ssl_config
+      ;;
+    8)
+      if ! command -v mysql >/dev/null 2>&1; then
+        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+        myadmin
+      elif ! command -v myadmin >/dev/null 2>&1; then
+        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/db/install.sh)
+          myadmin
+      else
+        myadmin
+      fi
+      ;;
+    9)
+      if ! command -v docker_mgr >/dev/null 2>&1; then
+        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/docker/install.sh)
+      else
+        docker_mgr
+      fi
       ;;
     0)
       exit 0
