@@ -8,7 +8,7 @@ fi
 
 
 # 版本
-version="6.4.0"
+version="6.4.1"
 
 
 # 顏色定義
@@ -3043,16 +3043,31 @@ show_cert_status() {
   check_web_environment
   if [[ $use_my_app != true ]]; then
     echo -e "===== Nginx 站點憑證狀態 ====="
-    echo -e "${RED}您好,您現在使用其他web server 無法使用站點憑證狀態之功能${RESET}"
+    echo -e "${RED}您好,您現在使用其他 web server 無法使用站點憑證狀態之功能${RESET}"
   else
     echo -e "===== Nginx 站點憑證狀態 ====="
-    printf "%-30s | %-20s | %-20s | %-10s | %s\n" "域名" "到期日" "憑證資料夾" "狀態" "備註"
-    echo "------------------------------------------------------------------------------------------------------"
+
+    # 定義表頭文字
+    local col1="域名"
+    local col2="到期日"
+    local col3="憑證資料夾"
+    local col4="狀態"
+    local col5="備註"
+
+    # 列印表頭，並補足空白對齊
+    printf "%-32s %-26s %-24s %-16s %s\n" \
+      "$col1$(printf '%*s' $((32 - ${#col1} * 2)) '')" \
+      "$col2$(printf '%*s' $((26 - ${#col2} * 2)) '')" \
+      "$col3$(printf '%*s' $((24 - ${#col3} * 2)) '')" \
+      "$col4$(printf '%*s' $((16 - ${#col4} * 2)) '')" \
+      "$col5"
+
+    printf "%s\n" "----------------------------------------------------------------------------------------------------------------------------------"
 
     local CERT_PATH="/etc/letsencrypt/live"
-    local nginx_conf_paths=$(detect_conf_path)
+    local nginx_conf_paths
+    nginx_conf_paths=$(detect_conf_path)
 
-    # 讀取所有 server_name 域名
     local nginx_domains
     nginx_domains=$(grep -rhoE 'server_name\s+[^;]+' "$nginx_conf_paths" 2>/dev/null | \
       sed -E 's/server_name\s+//' | tr ' ' '\n' | grep -E '^[a-zA-Z0-9.-]+$' | sort -u)
@@ -3060,7 +3075,7 @@ show_cert_status() {
     for nginx_domain in $nginx_domains; do
       local matched_cert="-"
       local end_date="無憑證"
-      local status=$'\e[31m未使用/錯誤\e[0m'
+      local status="未使用/錯誤"
       local note=""
 
       local exact_match_cert=""
@@ -3073,7 +3088,6 @@ show_cert_status() {
         local cert_file="$cert_dir/cert.pem"
         [[ -f "$cert_file" ]] || continue
 
-        # 取得憑證 SAN 清單（去掉 DNS: 且換行）
         local san_list
         san_list=$(openssl x509 -in "$cert_file" -noout -text 2>/dev/null | \
           awk '/X509v3 Subject Alternative Name/ {getline; gsub("DNS:", ""); gsub(", ", "\n"); print}')
@@ -3105,12 +3119,15 @@ show_cert_status() {
         status="泛域名命中"
       fi
 
-      # 判斷是否為 Cloudflare Origin 憑證
       if [[ -d "$CERT_PATH/$matched_cert" ]] && [[ -f "$CERT_PATH/$matched_cert/cf_cert_id.txt" ]]; then
         note="CF Origin"
       fi
 
-      printf "%-30s | %-20s | %-20s | %-10s | %s\n" "$nginx_domain" "$end_date" "$matched_cert" "$status" "$note"
+      # 對「狀態」欄固定寬度
+      status=$(printf "%-16s" "$status")
+
+      printf "%-32s %-26s %-24s %-16s %s\n" \
+        "$nginx_domain" "$end_date" "$matched_cert" "$status" "$note"
     done
   fi
 }
