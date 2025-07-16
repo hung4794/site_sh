@@ -1,4 +1,4 @@
-name: Generate Release Note
+name: Build and Release
 
 on:
   push:
@@ -6,95 +6,28 @@ on:
       - main
 
 jobs:
-  release_note:
+  build:
     runs-on: ubuntu-latest
 
     env:
-      AI_API_URL: ${{ secrets.AI_API_URL }}
-      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      changed_ngsh: 'true'
+      skip_whole_workflow: 'false'
+      skip_ai: 'false'
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: Check if ng.sh was modified in this push
-        id: check_ngsh_commit
-        run: |
-             if git rev-parse HEAD~1 >/dev/null 2>&1; then
-              # 檢查 HEAD~1 → HEAD 是否變更 ng.sh
-              if git diff --name-only HEAD~1 HEAD | grep -q '^ng\.sh$'; then
-               echo "changed_ngsh=true" >> $GITHUB_ENV
-               echo "本次 push 有修改 ng.sh"
-              else
-                echo "changed_ngsh=false" >> $GITHUB_ENV
-                echo "本次 push 未修改 ng.sh，後續流程將跳過"
-              fi
-             else
-                # 若 repo 僅有一個 commit
-               if git ls-tree --name-only HEAD | grep -q '^ng\.sh$'; then
-                 echo "changed_ngsh=true" >> $GITHUB_ENV
-                 echo "首次 commit 包含 ng.sh"
-               else
-                echo "changed_ngsh=false" >> $GITHUB_ENV
-                echo "首次 commit 未包含 ng.sh，後續流程將跳過"
-               fi
-             fi
-
-      - name: Read version from ng.sh
-        if: env.changed_ngsh == 'true'
+      - name: Read version
         id: read_version
         run: |
-          raw_version=$(grep '^version=' ng.sh | cut -d'=' -f2 | tr -d '"' | tr -d "'")
-          echo "抓到原始版本: $raw_version"
-
-          if [[ "$raw_version" =~ ^v ]]; then
-            version_final="$raw_version"
-          else
-            version_final="v$raw_version"
-          fi
-
-          echo "version_final=$version_final" >> $GITHUB_OUTPUT
-
-      - name: Check if tag already exists
-        if: env.changed_ngsh == 'true'
-        id: check_tag
-        run: |
-          git fetch --tags
-          if git tag --list | grep -q "^${{ steps.read_version.outputs.version_final }}$"; then
-            echo "此版本已存在，不重複執行。"
-            echo "skip_whole_workflow=true" >> $GITHUB_ENV
-          else
-            echo "skip_whole_workflow=false" >> $GITHUB_ENV
-          fi
-
-      - name: Generate git diff
-        if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true'
-        id: diff
-        run: |
-          git fetch origin main
-
-          if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            if git diff --quiet HEAD~1 HEAD -- ng.sh; then
-              echo "diff_text=(未變更 ng.sh)" >> $GITHUB_ENV
-              echo "skip_ai=true" >> $GITHUB_ENV
-            else
-              diff_text=$(git diff HEAD~1 HEAD -- ng.sh | grep -vE '^[+-]version=')
-              echo "diff_text<<EOF" >> $GITHUB_ENV
-              echo "$diff_text" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              echo "skip_ai=false" >> $GITHUB_ENV
-            fi
-          else
-            echo "首次 commit，無法產生 diff"
-            echo "diff_text=(首次 commit)" >> $GITHUB_ENV
-            echo "skip_ai=true" >> $GITHUB_ENV
-          fi
+          echo "version_final=v6.4.1" >> $GITHUB_OUTPUT
 
       - name: Call custom AI API
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
         run: |
+          diff_text="Some git diff here..."
+
           diff_json=$(jq -Rs . <<< "$diff_text")
 
           json_payload=$(jq -n \
@@ -115,6 +48,10 @@ jobs:
 
           summary=$(jq -r '.choices[0].message.content // "AI 回傳空結果"' response.json)
 
+          # 存到檔案，讓後續都用 cat 讀
+          echo "$summary" > summary.txt
+
+          # 同時 export 給後續 steps
           echo "summary<<EOF" >> $GITHUB_ENV
           echo "$summary" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -123,7 +60,8 @@ jobs:
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true'
         run: |
           echo "最終版本號: ${{ steps.read_version.outputs.version_final }}"
-          echo "${{ env.summary }}"
+          echo "--- Summary ---"
+          cat summary.txt
 
       - name: Send Telegram Message
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
@@ -131,18 +69,16 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          # 將版本號和 summary 組合在一起
-          MESSAGE_BODY="${{ steps.read_version.outputs.version_final }}
+          VERSION="${{ steps.read_version.outputs.version_final }}"
+          SUMMARY=$(cat summary.txt)
 
-          ${{ env.summary }}"
+          MESSAGE_BODY="$VERSION\n\n$SUMMARY"
 
-          # 使用 curl 的 --data-urlencode 來安全地傳遞文字
-          # 它會自動處理換行和特殊字元，比手動拼接更安全
+          # curl --data-urlencode 自動處理換行與特殊字元
           curl -s -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
             --data-urlencode "chat_id=$TG_CHAT_ID" \
             --data-urlencode "text=$MESSAGE_BODY" \
             --data-urlencode "parse_mode=Markdown"
-
 
       - name: Create git tag
         if: env.changed_ngsh == 'true' && env.skip_whole_workflow != 'true' && env.skip_ai == 'false'
@@ -156,6 +92,6 @@ jobs:
         with:
           tag_name: ${{ steps.read_version.outputs.version_final }}
           name: ${{ steps.read_version.outputs.version_final }}
-          body: ${{ env.summary }}
+          body_path: summary.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
