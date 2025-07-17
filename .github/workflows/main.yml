@@ -152,8 +152,9 @@ jobs:
           FINAL_VERSION: ${{ steps.read_version.outputs.version_final }}
           SUMMARY_CONTENT: ${{ env.summary }}
         run: |
-          # 使用步驟級別的環境變數來組合訊息，這樣最安全
-          MESSAGE_BODY="$FINAL_VERSION
+          # 組合訊息，在最前面加上固定的標題和一個換行
+          MESSAGE_BODY="【站點管理器】
+          $FINAL_VERSION
 
           $SUMMARY_CONTENT"
           
