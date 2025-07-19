@@ -332,10 +332,7 @@ check_and_start_service() {
   # 用 service 查詢狀態，通常非 0 表示沒啟動或錯誤
   service "$service_name" status >/dev/null 2>&1
   if [ $? -ne 0 ]; then
-    echo "服務 $service_name 未啟動，嘗試啟動中..."
     service "$service_name" start
-  else
-    echo "服務 $service_name 已啟動"
   fi
 }
 
