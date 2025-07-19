@@ -12,7 +12,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # 版本
-version="6.5.1"
+version="6.5.2"
 
 
 # 顏色定義
@@ -4268,6 +4268,18 @@ case "$1" in
   del)
     domain="$2"
     menu_del_sites "$domain"
+    exit 0
+    ;;
+  api)
+    if [[ "$2" == "search" && "$3" == "proxy_domain" ]]; then
+      target="$4"
+      conf_file=$(detect_conf_path)/
+      find $conf_file -type f -name "*.conf" | while read -r file; do
+        if grep -qE "proxy_pass\\s+(http|https)://$target" "$file"; then 
+          grep -E "^\\s*server_name\\s+" "$file" | awk '{for(i=2;i<=NF;i++) print $i}' | sed 's/;$//'
+        fi
+      done | sort | uniq
+    fi
     exit 0
     ;;
 esac
