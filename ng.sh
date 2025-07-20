@@ -12,15 +12,16 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # 版本
-version="6.5.2"
+version="6.6.0"
 
 
 # 顏色定義
-RED='\033[0;31m'     # ❌ 錯誤用紅色
-GREEN='\033[0;32m'   # ✅ 成功用綠色
+RED="\033[1;31m"    # ❌ 錯誤用紅色
+GREEN="\033[1;32m"   # ✅ 成功用綠色
 YELLOW='\033[1;33m'  # ⚠️ 警告用黃色
-CYAN='\033[0;36m'    # ℹ️ 一般提示用青色
+CYAN="\033[1;36m"    # ℹ️ 一般提示用青色
 RESET='\033[0m'      # 清除顏色
+
 
 
 adjust_opcache_settings() {
@@ -36,7 +37,7 @@ adjust_opcache_settings() {
   fi
 
   if [ ! -f "$php_ini" ]; then
-    echo "❌ 無法找到 php.ini，無法調整 opcache 設定。"
+    echo -e "${RED}無法找到 php.ini，無法調整 opcache 設定。${RESET}"
     return 1
   fi
 
@@ -48,13 +49,13 @@ adjust_opcache_settings() {
       awk -F= '{gsub(/[[:space:]]/,"",$2); print $2}')
 
     if [ "$current_revalidate_freq" = "0" ]; then
-      echo "✅ 調整 opcache.revalidate_freq 為 1"
+      echo -e "${CYAN}調整 opcache.revalidate_freq 為 1${RESET}"
       sed -i 's/^[[:space:]]*opcache\.revalidate_freq[[:space:]]*=.*/opcache.revalidate_freq=1/' "$php_ini"
     else
-      echo "ℹ️ opcache.revalidate_freq 值不是 0，無需修改"
+      echo -e "${CYAN}opcache.revalidate_freq 值不是 0，無需修改${RESET}"
     fi
   else
-    echo "ℹ️ opcache.revalidate_freq 未在 php.ini 中設定或僅存在註解，跳過修改"
+    echo -e "${CYAN}opcache.revalidate_freq 未在 php.ini 中設定或僅存在註解，跳過修改${RESET}"
   fi
 
   # 檢查並處理 opcache.validate_timestamps
@@ -65,16 +66,16 @@ adjust_opcache_settings() {
       awk -F= '{gsub(/[[:space:]]/,"",$2); print $2}')
 
     if [ "$current_validate_timestamps" = "0" ]; then
-      echo "✅ 調整 opcache.validate_timestamps 為 2"
+      echo -e "${GREEN} 調整 opcache.validate_timestamps 為 2${RESET}"
       sed -i 's/^[[:space:]]*opcache\.validate_timestamps[[:space:]]*=.*/opcache.validate_timestamps=2/' "$php_ini"
     else
-      echo "ℹ️ opcache.validate_timestamps 值不是 0，無需修改"
+      echo -e "${CYAN}opcache.validate_timestamps 值不是 0，無需修改${RESET}"
     fi
   else
-    echo "ℹ️ opcache.validate_timestamps 未在 php.ini 中設定或僅存在註解，跳過修改"
+    echo -e "${CYAN}opcache.validate_timestamps 未在 php.ini 中設定或僅存在註解，跳過修改${RESET}"
   fi
 
-  echo "✅ 檢查完成"
+  echo "${GREEN} 檢查完成${RESET}"
 }
 # WordPress備份
 # 自動偵測站點類型
@@ -98,16 +99,16 @@ backup_site_type_clean() {
     local keep_count="$3"
     local backup_dir="/opt/wp_backups/$domain"
     if [[ ! -d "$backup_dir" ]]; then
-        echo "❌ 找不到備份目錄：$backup_dir"
+        echo -e "${RED}找不到備份目錄：$backup_dir${RESET}"
         return 1
     fi
     if [[ ! "$keep_count" =~ ^[0-9]+$ ]]; then
-        echo "❌ 保留份數需為數字"
+        echo -e "${RED}保留份數需為數字${RESET}"
         return 1
     fi
-    echo "🧹 正在清理 $type 備份，只保留最新 $keep_count 份..."
+    echo "正在清理 $type 備份，只保留最新 $keep_count 份..."
     ls -1t "$backup_dir"/backup-*.tar.gz 2>/dev/null | tail -n +$((keep_count + 1)) | xargs -r rm -f
-    echo "✅ 清理完成。"
+    echo -e "${GREEN}清理完成。${RESET}"
 }
 
 # 多站型備份主函式，$1=wp/flarum，$2=domain
@@ -143,7 +144,7 @@ backup_site_type() {
             if mysqldump -uroot -p"$mysql_root_pass" --no-data mysql >/dev/null 2>&1; then
               mysqldump_cmd="mysqldump -uroot -p$mysql_root_pass"
             else
-              echo "❌ 無法用該密碼登入 MySQL，備份失敗！"
+              echo -e "${RED}無法用該密碼登入 MySQL，備份失敗！${RESET}"
                 return 1
             fi
           fi
@@ -151,20 +152,20 @@ backup_site_type() {
         $mysqldump_cmd --single-transaction --routines --triggers --events "$db_name" > "$tmp_sql"
         
         if [[ $? -ne 0 ]]; then
-            echo "❌ 資料庫備份失敗！"
+            echo -e "${RED}資料庫備份失敗！${RESET}"
             rm -f "$tmp_sql"
             return 1
         fi
-        echo "📁 正在打包網站檔案..."
+        echo "正在打包網站檔案..."
         cp "$tmp_sql" "$web_root/"
         tar -czf "$backup_file" -C "$web_root" .
         rm -f "$web_root/$(basename "$tmp_sql")"
         rm -f "$tmp_sql"
-        echo "✅ 備份完成！檔案位置：$backup_file"
+        echo -e "${GREEN} 備份完成！檔案位置：$backup_file${RESET}"
     elif [[ "$type" == "flarum" ]]; then
       local config="$web_root/config.php"
       if [[ ! -f "$config" ]]; then
-        echo "❌ 找不到 config.php"
+        echo -e "${RED}找不到 config.php${RESET}"
         return 1
       fi
 
@@ -173,28 +174,28 @@ backup_site_type() {
       local db_pass=$(php -r "\$c = include '$config'; echo \$c['database']['password'] ?? '';")
 
       if [[ -z "$db_name" || -z "$db_user" ]]; then
-        echo "❌ 無法讀取 Flarum DB 設定"
+        echo -e "${RED}無法讀取 Flarum DB 設定${RESET}"
         return 1
       fi
 
-      echo "➡️ 正在匯出 Flarum 資料庫 $db_name..."
+      echo "正在匯出 Flarum 資料庫 $db_name..."
       local tmp_sql="$backup_dir/db-$timestamp.sql"
       mysqldump -u"$db_user" -p"$db_pass" "$db_name" > "$tmp_sql"
       if [[ $? -ne 0 ]]; then
-          echo "❌ 資料庫備份失敗！"
+          echo -e "${RED}資料庫備份失敗！${RESET}"
           rm -f "$tmp_sql"
           return 1
       fi
 
       # ✅ 把 SQL 複製到 web_root 一起打包
       cp "$tmp_sql" "$web_root/"
-      echo "📁 正在打包 Flarum 全部檔案..."
+      echo "正在打包 Flarum 全部檔案..."
       tar -czf "$backup_file" -C "$web_root" .
       rm -f "$web_root/$(basename "$tmp_sql")"
       rm -f "$tmp_sql"
-      echo "✅ 備份完成！檔案位置：$backup_file"
+      echo -e "${GREEN}備份完成！檔案位置：$backup_file${RESET}"
     else
-        echo "❌ 不支援的站點類型：$type"
+        echo -e "${RED}不支援的站點類型：$type${RESET}"
         return 1
     fi
 }
@@ -210,45 +211,45 @@ backup_site() {
     mkdir -p "$backup_dir"
 
     local type=$(detect_site_type "$web_root")
-    echo "➡️ 偵測到站點類型：$type"
+    echo "偵測到站點類型：$type"
 
     if [[ "$type" == "unknown" ]]; then
-        echo "❌ 不支援的站點類型，取消備份。"
+        echo -e "${RED}不支援的站點類型，取消備份。${RESET}"
         return 1
     fi
 
-    echo "➡️ 備份模式選擇："
-    echo "  [1] 手動備份一次"
-    echo "  [2] 設定每日自動備份"
+    echo "備份模式選擇："
+    echo "[1] 手動備份一次"
+    echo "[2] 設定每日自動備份"
     read -p "請輸入選項 [1-2]： " mode_choice
 
     if [[ "$mode_choice" == "1" ]]; then
         backup_site_type "$type" "$domain" || return
         echo
-        echo "➡️ 是否清理多餘備份？"
+        echo "是否清理多餘備份？"
         read -p "保留最新幾份備份檔案？（輸入數字或留空跳過）： " keep_count
         if [[ "$keep_count" =~ ^[0-9]+$ ]]; then
             backup_site_type_clean "$type" "$domain" "$keep_count"
         else
-            echo "⚠️ 跳過自動清理。"
+            echo -e "${YELLOW}跳過自動清理。${RESET}"
         fi
     elif [[ "$mode_choice" == "2" ]]; then
         echo "請輸入自動備份的 crontab 時間格式 (如 '0 3 * * *'、'*/6 * * * *' 等)："
         read -p "crontab 時間：" cron_time
         if [[ -z "$cron_time" ]]; then
-            echo "❌ 未輸入 crontab 時間，取消設定排程。"
+            echo -e "${RED}未輸入 crontab 時間，取消設定排程。${RESET}"
             return 1
         fi
         read -p "保留最新幾份備份檔案？（輸入數字，必填）： " keep_count
         if [[ ! "$keep_count" =~ ^[0-9]+$ ]]; then
-            echo "❌ 請輸入有效數字。"
+            echo -e "${RED}請輸入有效數字。${RESET}"
             return 1
         fi
         cron_job="$cron_time bash -c '$(declare -f detect_site_type); $(declare -f backup_site_type); $(declare -f backup_site_type_clean); type=\"$(detect_site_type /var/www/$domain)\"; backup_site_type \"$type\" \"$domain\"; backup_site_type_clean \"$type\" \"$domain\" \"$keep_count\"'"
         (crontab -l 2>/dev/null | grep -v "$domain"; echo "$cron_job") | crontab -
-        echo "✅ 已設定自動備份排程（$cron_time），並自動清理多餘備份（只保留最新 $keep_count 份）！"
+        echo -e "${GREEN}已設定自動備份排程（$cron_time），並自動清理多餘備份（只保留最新 $keep_count 份）！${RESET}"
     else
-        echo "❌ 無效選項，取消備份。"
+        echo -e "${RED}無效選項，取消備份。${RESET}"
         return 1
     fi
     echo "============ 備份作業結束 ============"
@@ -262,7 +263,7 @@ backup_cron_remove() {
     cron_list=$(crontab -l 2>/dev/null | grep "/var/www")
 
     if [[ -z "$cron_list" ]]; then
-        echo "⚠️ 系統中沒有任何站點備份排程。"
+        echo -e "${YELLOW}系統中沒有任何站點備份排程。${RESET}"
         return 0
     fi
 
@@ -283,12 +284,12 @@ backup_cron_remove() {
     read -p "請輸入欲移除排程的序號（或留空取消）： " choice
 
     if [[ -z "$choice" ]]; then
-        echo "⚠️ 已取消。"
+        echo -e "${YELLOW} 已取消。${RESET}"
         return 0
     fi
 
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#domains[@]} )); then
-        echo "❌ 無效的序號。"
+        echo -e "${RED}無效的序號。${RESET}"
         return 1
     fi
 
@@ -300,7 +301,7 @@ backup_cron_remove() {
     # 寫回 crontab
     echo "$new_crontab" | crontab -
 
-    echo "✅ 已移除 $domain_to_remove 的備份排程。"
+    echo -e "${GREEN}已移除 $domain_to_remove 的備份排程。${RESET}"
     echo "============ 移除作業結束 ============"
 }
 
@@ -311,7 +312,7 @@ check_system(){
   elif command -v yum >/dev/null 2>&1; then
     system=2
     if grep -q -Ei "release 7|release 8" /etc/redhat-release; then
-      echo -e "${RED}⚠️ 不支援 CentOS 7 或 CentOS 8，請升級至 9 系列 (Rocky/Alma/CentOS Stream)${RESET}"
+      echo -e "${RED}不支援 CentOS 7 或 CentOS 8，請升級至 9 系列 (Rocky/Alma/CentOS Stream)${RESET}"
       exit 1
     fi
   elif command -v apk >/dev/null 2>&1; then
@@ -332,10 +333,7 @@ check_and_start_service() {
   # 用 service 查詢狀態，通常非 0 表示沒啟動或錯誤
   service "$service_name" status >/dev/null 2>&1
   if [ $? -ne 0 ]; then
-    echo "服務 $service_name 未啟動，嘗試啟動中..."
     service "$service_name" start
-  else
-    echo "服務 $service_name 已啟動"
   fi
 }
 
@@ -379,7 +377,7 @@ clean_ssl_session_cache() {
       sed -i '/^[[:space:]]*ssl_session_cache[[:space:]]/d' "$file"
       count_after=$(grep -E '^[[:space:]]*ssl_session_cache' "$file" | wc -l)
       if [ "$count_before" -gt "$count_after" ]; then
-        echo "🧹 已清除 $file 中的 ssl_session_cache 設定"
+        echo -e "${GREEN}已清除 $file 中的 ssl_session_cache 設定${RESET}"
       fi
     fi
   done
@@ -418,7 +416,7 @@ check_cert() {
     fi
   done
 
-  echo "未找到包含 $domain 的有效憑證"
+  echo -e "${YELLOW}未找到包含 $domain 的有效憑證${RESET}"
   return 1
 }
 
@@ -611,13 +609,13 @@ check_certbot(){
         ;;
     esac
   else
-    echo "certbot 已安裝"
+    echo -e "${GREEN}certbot 已安裝${RESET}"
   fi
 }
 
 check_php(){
   if ! command -v php >/dev/null 2>&1; then
-    echo "您好，您尚未安裝php，正在為您安裝..."
+    echo -e "${GREEN}您好，您尚未安裝php，正在為您安裝...${RESET}"
     php_install
     php_fix
   fi
@@ -648,7 +646,7 @@ check_flarum_supported_php() {
   done
 
   if [[ ${#valid_versions[@]} -eq 0 ]]; then
-    echo "❌ 沒有任何版本符合 Flarum 安裝包"
+    echo "${RED}沒有任何版本符合 Flarum 安裝包${RESET}"
     return 1
   fi
 
@@ -697,7 +695,7 @@ check_php_version() {
         phpver=$(php -v | head -n1 | grep -oP '\d+\.\d+')
         echo "$phpver" 
       else
-        echo "❌ PHP 尚未安裝。" >&2
+        echo -e "${RED}PHP 尚未安裝。${RESET}" >&2
         return 1
       fi
       ;;
@@ -706,7 +704,7 @@ check_php_version() {
         phpver=$(php -v | head -n1 | grep -oP '\d+\.\d+')
         echo "$phpver" # ex 8.3
       else
-        echo "❌ PHP 尚未安裝。" >&2
+        echo -e "${RED}PHP 尚未安裝。${RESET}" >&2
         return 1
       fi
       ;;
@@ -716,13 +714,9 @@ check_php_version() {
         alpver=$(echo "$rawver" | tr -d '.')
         echo "$alpver" #出現83
       else
-        echo "❌ PHP 尚未安裝。" >&2
+        echo -e "${RED}PHP 尚未安裝。${RESET}" >&2
         return 1
       fi
-      ;;
-    *)
-      echo "❌ 不支援的系統。" >&2
-      return 1
       ;;
   esac
 }
@@ -758,7 +752,7 @@ cf_cert_autogen() {
 
     # 1. 檢查加密檔案
     if [ ! -f "$key_file" ] || [ ! -f "$enc_file" ]; then
-        echo "⚠️ 尚未設定帳號資訊，請輸入："
+        echo -e "${YELLOW}尚未設定帳號資訊，請輸入：${RESET}"
         read -p "Cloudflare 登入信箱: " cf_email
         read -p "Global API Key（將加密儲存）: " -s cf_key
         echo
@@ -769,7 +763,7 @@ cf_cert_autogen() {
 
         echo "$cf_email:$cf_key" | openssl enc -aes-256-cbc -pbkdf2 -salt -pass file:"$key_file" -out "$enc_file"
         chmod 600 "$enc_file"
-        echo "✅ Cloudflare 認證資料已加密儲存"
+        echo -e "${GREEN}Cloudflare 認證資料已加密儲存${RESET}"
     fi
 
     # 2. 解密帳號資訊
@@ -783,7 +777,7 @@ cf_cert_autogen() {
         if [[ "$input_domain" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
             break
         else
-            echo "❌ 請輸入正確格式的域名（不可含 http/https/空格）"
+            echo -e "${YELLOW}請輸入正確格式的域名（不可含 http/https/空格）${RESET}"
         fi
     done
 
@@ -804,11 +798,11 @@ cf_cert_autogen() {
     done
 
     if [ -z "$base_domain" ]; then
-        echo "❌ 找不到與 $input_domain 對應的根域名，請確認該域名是否在你帳號內託管。"
+        echo -e "${RED}找不到與 $input_domain 對應的根域名，請確認該域名是否在你帳號內託管。${RESET}"
         return 1
     fi
 
-    echo "✅ 偵測成功：對應的根域名為 $base_domain"
+    echo -e "${GREEN}偵測成功：對應的根域名為 $base_domain${RESET}"
 
     le_dir="/etc/letsencrypt/live/$base_domain"
     mkdir -p "$le_dir"
@@ -821,7 +815,7 @@ cf_cert_autogen() {
 
     csr_content=$(awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' domain.csr)
 
-    echo "\n🔐 發送憑證申請至 Cloudflare API..."
+    echo -e "\n ${CYAN}發送憑證申請至 Cloudflare API...${RESET}"
     response=$(curl -s -X POST https://api.cloudflare.com/client/v4/certificates \
       -H "Content-Type: application/json" \
       -H "X-Auth-Email: $cf_email" \
@@ -838,12 +832,12 @@ cf_cert_autogen() {
         cat cert.pem > fullchain.pem
         local cert_id=$(echo "$response" | jq -r '.result.id')
         echo "$cert_id" > cf_cert_id.txt
-        echo "✅ 成功！憑證已儲存於：$le_dir"
+        echo -e "${GREEN}成功！憑證已儲存於：$le_dir${RESET}"
         echo "- cert.pem"
         echo "- fullchain.pem"
         echo "- privkey.pem"
     else
-        echo "❌ 憑證申請失敗，錯誤如下："
+        echo -e "${RED}憑證申請失敗，錯誤如下：${RESET}"
         echo "$response" | jq
     fi
 }
@@ -856,7 +850,7 @@ cf_cert_revoke() {
     echo "===== Cloudflare Origin 憑證吊銷器 ====="
 
     if [ ! -f "$key_file" ] || [ ! -f "$enc_file" ]; then
-        echo "❌ 尚未設定 Cloudflare 認證資料，請先執行申請功能"
+        echo -e "${RED}尚未設定 Cloudflare 認證資料，請先執行申請功能${RESET}"
         return 1
     fi
 
@@ -872,7 +866,7 @@ cf_cert_revoke() {
           if [[ "$input_domain" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
               break
           else
-              echo "❌ 請輸入正確格式的域名"
+              echo -e "${YELLOW} 請輸入正確格式的域名${RESET}"
           fi
       done
     fi
@@ -881,7 +875,7 @@ cf_cert_revoke() {
     cert_id_file="$le_dir/cf_cert_id.txt"
 
     if [ ! -f "$cert_id_file" ]; then
-        echo "❌ 找不到本地憑證 ID ($cert_id_file)，無法吊銷"
+        echo -e "${RED} 找不到本地憑證 ID ($cert_id_file)，無法吊銷${RESET}"
         return 1
     fi
 
@@ -895,15 +889,15 @@ cf_cert_revoke() {
           -H "Content-Type: application/json")
 
         if echo "$revoke_response" | grep -q '"success":true'; then
-            echo "✅ Cloudflare Origin 憑證已成功吊銷"
+            echo -e "${GREEN}Cloudflare Origin 憑證已成功吊銷${RESET}"
 
             read -p "是否一併刪除本地憑證檔案（cert.pem, fullchain.pem, privkey.pem）？(y/N): " del_local
             if [[ "$del_local" =~ ^[Yy]$ ]]; then
                 rm -f "$le_dir/cert.pem" "$le_dir/fullchain.pem" "$le_dir/privkey.pem" "$cert_id_file"
-                echo "✅ 已刪除本地檔案"
+                echo -e "${GREEN}已刪除本地檔案${RESET}"
             fi
         else
-            echo "❌ 吊銷失敗，回傳如下："
+            echo -e "${RED}吊銷失敗，回傳如下：${RESET}"
             echo "$revoke_response" | jq
         fi
     else
@@ -947,13 +941,13 @@ change_wp_admin_username() {
 
   read -p "請輸入新的管理員使用者名稱：" new_username
   if [ -z "$new_username" ]; then
-    echo "❌ 新用戶名不可為空，取消修改"
+    echo -e "${RED}新用戶名不可為空，取消修改${RESET}"
     return 1
   fi
 
   # 確認新用戶名是否已存在
   if wp --allow-root --path="$site_path" user get "$new_username" >/dev/null 2>&1; then
-    echo "❌ 新用戶名已存在，請換一個"
+    echo -e "${RED} 新用戶名已存在，請換一個${RESET}"
     return 1
   fi
 
@@ -961,7 +955,7 @@ change_wp_admin_username() {
   local sql="UPDATE wp_users SET user_login='${new_username}' WHERE user_login='${selected_admin}';"
   wp --allow-root --path="$site_path" db query "$sql"
 
-  echo "✅ 管理員使用者名稱已從 '$selected_admin' 修改為 '$new_username'"
+  echo -e "${GREEN}管理員使用者名稱已從 '$selected_admin' 修改為 '$new_username'${RESET}"
 }
 
 change_wp_admin_password() {
@@ -970,7 +964,7 @@ change_wp_admin_password() {
   
   # 確認 WordPress 路徑
   if [ ! -f "$site_path/wp-config.php" ]; then
-    echo "❌ 找不到 WordPress 安裝路徑：$site_path"
+    echo "${RED}找不到 WordPress 安裝路徑：$site_path${RESET}"
     return 1
   fi
 
@@ -978,7 +972,7 @@ change_wp_admin_password() {
   mapfile -t admins < <(wp --allow-root --path="$site_path" user list --role=administrator --field=user_login)
 
   if [ ${#admins[@]} -eq 0 ]; then
-    echo "❌ 沒有找到管理員用戶"
+    echo -e "${RED}沒有找到管理員用戶${RESET}"
     return 1
   fi
 
@@ -1002,14 +996,14 @@ change_wp_admin_password() {
   read -s -p "請輸入新的密碼：" new_password
   echo
   if [ -z "$new_password" ]; then
-    echo "❌ 密碼不可為空，取消修改"
+    echo -e "${RED} 密碼不可為空，取消修改${RESET}"
     return 1
   fi
 
   read -s -p "請再輸入一次新的密碼以確認：" confirm_password
   echo
   if [ "$new_password" != "$confirm_password" ]; then
-    echo "❌ 兩次輸入的密碼不一致，取消修改"
+    echo -e "${RED}兩次輸入的密碼不一致，取消修改${RESET}"
     return 1
   fi
 
@@ -1017,12 +1011,13 @@ change_wp_admin_password() {
   wp --allow-root --path="$site_path" user update "$selected_admin" --user_pass="$new_password" --skip-email
 
   if [ $? -eq 0 ]; then
-    echo "✅ 管理員 '$selected_admin' 的密碼已更新成功"
+    echo -e "${GREEN}管理員 '$selected_admin' 的密碼已更新成功${RESET}"
   else
-    echo "❌ 密碼更新失敗"
+    echo -e "${RED}密碼更新失敗${RESET}"
     return 1
   fi
 }
+
 
 clean_nginx_ssl_config() {
     conf_path=$(detect_conf_path)
@@ -1064,13 +1059,13 @@ default(){
     # download lua environment value
     cd /usr/local/share/lua/5.1/
     git clone https://github.com/openresty/lua-resty-core.git resty_core_temp || {
-      echo "下載 lua-resty-core 失敗"; return 1;
+      echo -e "${RED}下載 lua-resty-core 失敗${RESET}"; return 1;
     }
     cp -r resty_core_temp/lib/resty ./resty
     rm -rf resty_core_temp
 
     wget -O ./resty/lrucache.lua https://raw.githubusercontent.com/openresty/lua-resty-lrucache/master/lib/resty/lrucache.lua || {
-      echo "下載 lrucache 失敗"; return 1;
+      echo -e "${RED}下載 lrucache 失敗${RESET}"; return 1;
     }
     # download default
     rm -f $detect_conf_path/default.conf
@@ -1094,7 +1089,7 @@ detect_conf_path() {
     nginx_conf="/etc/nginx/nginx.conf"
   fi
 
-  [ -f "$nginx_conf" ] || { echo "❌ 無法找到 nginx 配置文件" >&2; return 1; }
+  [ -f "$nginx_conf" ] || { echo -e "${RED}無法找到 nginx 配置文件${RESET}" >&2; return 1; }
 
   include_lines=$(sed -n '/http[[:space:]]*{/,/^}/p' "$nginx_conf" | tr -d '\r' | grep -E 'include[[:space:]]+[^;]*\*[^;]*;')
 
@@ -1131,7 +1126,7 @@ detect_sites() {
   local base_dir="/var/www"
 
   [ -z "$app_type" ] && {
-    echo "請輸入要偵測的應用名稱，例如：WordPress 或 Flarum"
+    echo -e "${RED}請輸入要偵測的應用名稱，例如：WordPress 或 Flarum${RESET}"
     return 1
   }
 
@@ -1159,7 +1154,7 @@ detect_sites_menu() {
   local sites=()
 
   [ -z "$app_type" ] && {
-    echo "請輸入要偵測的應用名稱，例如：WordPress 或 Flarum" >&2
+    echo -e "${RED}請輸入要偵測的應用名稱，例如：WordPress 或 Flarum${RESET}" >&2
     return 1
   }
 
@@ -1175,19 +1170,19 @@ detect_sites_menu() {
           sites+=("$(basename "$dir")")
         ;;
       *)
-        echo "暫不支援偵測此應用：$app_type" >&2
+        echo -e "${RED}暫不支援偵測此應用：$app_type${RESET}" >&2
         return 1
         ;;
     esac
   done
 
   if [ ${#sites[@]} -eq 0 ]; then
-    echo "未偵測到任何 $app_type 網站" >&2
+    echo -e "${RED}未偵測到任何 $app_type 網站${RESET}" >&2
     return 1
   fi
 
   if ! [ -t 0 ]; then
-    echo "❌ 非交互式環境，無法使用選單" >&2
+    echo -e "${RED}非交互式環境，無法使用選單${RESET}" >&2
     return 1
   fi
 
@@ -1197,7 +1192,7 @@ detect_sites_menu() {
       echo "$site"
       return 0
     else
-      echo "請輸入有效的編號" >&2
+      echo -e "${YELLOW}請輸入有效的編號${RESET}" >&2
     fi
   done
 }
@@ -1212,13 +1207,13 @@ deploy_or_remove_theme() {
 
   # 確保 wp-cli 存在
   if ! command -v wp >/dev/null 2>&1; then
-    echo "❌ 找不到 wp-cli，可先執行 install_wp_cli"
+    echo -e "${RED}找不到 wp-cli，可先執行 install_wp_cli${RESET}"
     return 1
   fi
 
   # 確保路徑存在
   if [ ! -d "$wp_theme_dir" ]; then
-    echo "❌ 找不到 WordPress themes 目錄：$wp_theme_dir"
+    echo -e "${RED}找不到 WordPress themes 目錄：$wp_theme_dir${RESET}"
     return 1
   fi
 
@@ -1226,16 +1221,16 @@ deploy_or_remove_theme() {
     install)
       read -p "請輸入主題名稱或下載 URL：" theme_input
       if [ -z "$theme_input" ]; then
-        echo "❌ 未輸入任何主題名稱或 URL，取消安裝"
+        echo -e "${RED}未輸入任何主題名稱或 URL，取消安裝${RESET}"
         return 1
       fi
 
       if [[ "$theme_input" =~ ^https?:// ]]; then
         # 是網址，先下載
         tmp_file="/tmp/theme_download.$(date +%s)"
-        echo "🌐 正在下載主題：$theme_input"
+        echo -e "${CYAN}正在下載主題：$theme_input${RESET}"
         curl -L "$theme_input" -o "$tmp_file" || {
-          echo "❌ 無法下載 $theme_input"
+          echo -e "${RED}無法下載 $theme_input${RESET}"
           return 1
         }
 
@@ -1243,38 +1238,38 @@ deploy_or_remove_theme() {
         case "$theme_input" in
           *.zip)
             unzip -q "$tmp_file" -d "$wp_theme_dir" || {
-              echo "❌ 解壓縮失敗"
+              echo -e "${RED}解壓縮失敗${RESET}"
               rm -f "$tmp_file"
               return 1
             }
             ;;
           *.tar.gz|*.tgz)
             tar -xzf "$tmp_file" -C "$wp_theme_dir" || {
-              echo "❌ 解壓縮失敗"
+              echo -e "${RED}解壓縮失敗${RESET}"
               rm -f "$tmp_file"
               return 1
             }
             ;;
           *.tar)
             tar -xf "$tmp_file" -C "$wp_theme_dir" || {
-              echo "❌ 解壓縮失敗"
+              echo -e "${RED}解壓縮失敗${RESET}"
               rm -f "$tmp_file"
               return 1
             }
             ;;
           *)
-            echo "❌ 不支援的壓縮格式：$theme_input"
+            echo -e "${RED}不支援的壓縮格式：$theme_input${RESET}"
             rm -f "$tmp_file"
             return 1
             ;;
         esac
 
-        echo "✅ 主題已部署到 $wp_theme_dir"
+        echo -e "${GREEN}主題已部署到 $wp_theme_dir${RESET}"
         rm -f "$tmp_file"
 
       else
         # 非網址 → 當作主題名稱 → wp-cli 搜尋
-        echo "🔍 正在搜尋主題：$theme_input"
+        echo -e "${CYAN}正在搜尋主題：$theme_input${RESET}"
 
         mapfile -t themes < <(
           $wp_cli --path="$site_path" theme search "$theme_input" --per-page=10 --format=json \
@@ -1282,7 +1277,7 @@ deploy_or_remove_theme() {
         )
 
         if [ ${#themes[@]} -eq 0 ]; then
-          echo "❌ 找不到任何與 \"$theme_input\" 相關的主題"
+          echo -e "${RED}找不到任何與 \"$theme_input\" 相關的主題${RESET}"
           return 1
         fi
 
@@ -1300,19 +1295,19 @@ deploy_or_remove_theme() {
           if [ -n "$opt" ]; then
             idx=$((REPLY - 1))
             slug="${slugs[$idx]}"
-            echo "⚙️  正在安裝主題：$slug"
+            echo -e "${CYAN}正在安裝主題：$slug${RESET}"
             $wp_cli --path="$site_path" theme install "$slug" --activate
-            echo "✅ 已安裝並啟用主題：$slug"
+            echo -e "${GREEN}已安裝並啟用主題：$slug${RESET}"
             return 0
           else
-            echo "❌ 無效的選項，請重新選擇"
+            echo -e "${RED}無效的選項，請重新選擇${RESET}"
           fi
         done
       fi
       ;;
 
     remove)
-      echo "🔍 正在偵測已安裝的主題..."
+      echo "正在偵測已安裝的主題..."
 
       mapfile -t themes < <(
         $wp_cli --path="$site_path" theme list --status=active,inactive --format=json \
@@ -1320,7 +1315,7 @@ deploy_or_remove_theme() {
       )
 
       if [ ${#themes[@]} -eq 0 ]; then
-        echo "⚠️ 尚未安裝任何主題"
+        echo -e "${YELLOW}尚未安裝任何主題${RESET}"
         return 0
       fi
 
@@ -1342,30 +1337,29 @@ deploy_or_remove_theme() {
           idx=$((REPLY - 1))
           slug="${slugs[$idx]}"
 
-          echo "🗑 正在移除主題：$slug"
+          echo -e "${CYAN}正在移除主題：$slug${RESET}"
           $wp_cli --path="$site_path" theme delete "$slug"
-          echo "✅ 已移除主題：$slug"
+          echo -e "${GREEN}已移除主題：$slug${RESET}"
           return 0
         else
-          echo "❌ 無效的選項，請重新選擇"
+          echo -e "${RED}無效的選項，請重新選擇${RESET}"
         fi
       done
       ;;
 
     *)
-      echo "❌ 不支援的操作：$action"
+      echo -e "${RED}不支援的操作：$action${RESET}"
       return 1
       ;;
   esac
 }
-
 enable_mysql_remote_root() {
-  echo "🔧 啟用 MySQL / MariaDB root 遠端登入..."
+  echo "啟用 MySQL / MariaDB root 遠端登入..."
   local mysql_cmd=$(get_mysql_command)
 
   # 確認版本
   local version=$($mysql_cmd -N -e "SELECT VERSION();" | head -n 1)
-  echo "📦 偵測到版本：$version"
+  echo "偵測到版本：$version"
 
   if [[ "$version" == *MariaDB* ]]; then
     cnf_file="/etc/mysql/mariadb.conf.d/50-server.cnf"
@@ -1380,10 +1374,10 @@ enable_mysql_remote_root() {
     echo "bind-address = 0.0.0.0" >> "$cnf_file"
   fi
 
-  echo "✅ bind-address 已修改為 0.0.0.0"
+  echo -e "${GREEN}bind-address 已修改為 0.0.0.0${RESET}"
 
   service mysql restart || service mariadb restart
-  echo "🔄 資料庫已重新啟動"
+  echo -e "${GREEN}資料庫已重新啟動${RESET}"
 
   # 檢查是否已有 root@%
   local exists=$($mysql_cmd -N -e "SELECT COUNT(*) FROM mysql.user WHERE User='root' AND Host='%';")
@@ -1393,37 +1387,37 @@ enable_mysql_remote_root() {
       read -s -p "請輸入 root@% 的密碼（8+位，含大小寫數字特殊符號，禁止 / 和 \\）： " new_pass
       echo
       if [[ ${#new_pass} -lt 8 ]]; then
-        echo "❌ 密碼太短，至少 8 位"
+        echo -e "${RED}密碼太短，至少 8 位${RESET}"
         continue
       elif ! [[ "$new_pass" =~ [A-Z] ]]; then
-        echo "❌ 必須包含大寫字母"
+        echo -e "${RED}必須包含大寫字母${RESET}"
         continue
       elif ! [[ "$new_pass" =~ [a-z] ]]; then
-        echo "❌ 必須包含小寫字母"
+        echo -e "${RED}必須包含小寫字母${RESET}"
         continue
       elif ! [[ "$new_pass" =~ [0-9] ]]; then
-        echo "❌ 必須包含數字"
+        echo -e "${RED}必須包含數字${RESET}"
         continue
       elif ! [[ "$new_pass" =~ [^\w] ]]; then
-        echo "❌ 必須包含特殊符號"
+        echo -e "${RED}必須包含特殊符號${RESET}"
         continue
       elif [[ "$new_pass" == *"/"* || "$new_pass" == *"\\"* ]]; then
-        echo "❌ 密碼不可包含 / 或 \\"
+        echo -e "${RED}密碼不可包含 / 或 \\${RESET}"
         continue
       fi
       break
     done
 
-    echo "🚧 建立 root@% 帳戶..."
+    echo -e "${CYAN}建立 root@% 帳戶...${RESET}"
     $mysql_cmd -e "CREATE USER 'root'@'%' IDENTIFIED BY '$new_pass';"
     $mysql_cmd -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
     $mysql_cmd -e "FLUSH PRIVILEGES;"
-    echo "✅ 已建立 root@% 並授予權限"
+    echo -e "${GREEN}已建立 root@% 並授予權限${RESET}"
   else
-    echo "✅ root@% 帳戶已存在，跳過建立"
+    echo -e "${YELLOW}root@% 帳戶已存在，跳過建立${RESET}"
   fi
 
-  echo "🎉 遠端 root 登入功能已完成，可由其他主機或 Docker 連線"
+  echo -e "${GREEN}遠端 root 登入功能已完成，可由其他主機或 Docker 連線${RESET}"
 }
 
 
@@ -1435,7 +1429,7 @@ flarum_setup() {
 
   # 判斷 PHP 是否高於支援版本
   if [ "$(printf '%s\n' "$php_var" "$max_supported_php" | sort -V | tail -n1)" != "$php_var" ]; then
-    echo "⚠️  您目前使用的 PHP 版本是 $php_var，但 Flarum 僅建議使用到 $max_supported_php。"
+    echo -e "${YELLOW}您目前使用的 PHP 版本是 $php_var，但 Flarum 僅建議使用到 $max_supported_php。${RESET}"
     read -p "是否仍要繼續安裝？(y/N)：" confirm
     [[ "$confirm" =~ ^[Yy]$ ]] || return 1
   fi
@@ -1443,7 +1437,7 @@ flarum_setup() {
   if echo "$supported_php_versions" | grep -qw "$php_var"; then
     local download_phpver="$php_var"
   else
-    echo "⚠️ 您選擇的 PHP 版本不在 Flarum 支援列表，將改為使用 Flarum 支援的最高版本 $max_supported_php 的安裝包。"
+    echo -e "${YELLOW}您選擇的 PHP 版本不在 Flarum 支援列表，將改為使用 Flarum 支援的最高版本 $max_supported_php 的安裝包。${RESET}"
     local download_phpver="$max_supported_php"
   fi
 
@@ -1537,7 +1531,7 @@ flarum_setup() {
 flarum_extensions() {
   read -p "請輸入 Flarum 網址（例如 bbs.example.com）：" flarum_domain
 
-  site_path="/var/www/$flarum_domain"
+  local site_path="/var/www/$flarum_domain"
   if [ ! -f "$site_path/config.php" ]; then
     echo "此站點並非 Flarum 網站（缺少 config.php）。"
     return 1
@@ -1620,11 +1614,11 @@ get_mysql_command() {
         mysql_root_pw=$(cat "$pass_file")
         if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
             mysql_command="mysql -u root -p$mysql_root_pw"
-            >&2 echo "✅ 使用 /etc/mysql-pass.conf 登入 MySQL"
+            >&2 echo -e "${GREEN}使用 /etc/mysql-pass.conf 登入 MySQL${RESET}"
             echo "$mysql_command"
             return 0
         else
-            >&2 echo "⚠️ /etc/mysql-pass.conf 內的密碼無效，將要求重新輸入。"
+            >&2 echo -e "${YELLOW}/etc/mysql-pass.conf 內的密碼無效，將要求重新輸入。${RESET}"
         fi
     fi
 
@@ -1633,23 +1627,23 @@ get_mysql_command() {
         read -s -p "請輸入 MySQL root 密碼：" mysql_root_pw
         echo
         if [ -z "$mysql_root_pw" ]; then
-            >&2 echo "❌ 密碼不能為空，請再試一次。"
+            >&2 echo -e "${YELLOW}密碼不能為空，請再試一次。${RESET}"
             continue
         fi
 
         if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
             mysql_command="mysql -u root -p$mysql_root_pw"
-            >&2 echo "✅ 密碼正確，已成功登入 MySQL"
+            >&2 echo -e "${GREEN}密碼正確，已成功登入 MySQL${RESET}"
 
             # 寫入檔案
             echo "$mysql_root_pw" > "$pass_file"
             chmod 600 "$pass_file"
-            >&2 echo "✅ 已將 root 密碼寫入 $pass_file (權限 600)"
+            >&2 echo -e "${GREEN}已將 root 密碼寫入 $pass_file (權限 600)${RESET}"
 
             echo "$mysql_command"
             return 0
         else
-            >&2 echo "❌ 密碼錯誤，請再試一次。"
+            >&2 echo -e "${RED}密碼錯誤，請再試一次。${RESET}"
         fi
     done
 }
@@ -1792,42 +1786,42 @@ install_wp_plugin_with_search_or_url() {
   local plugin_dir="$site_path/wp-content/plugins"
 
   read -p "請輸入插件關鍵字 或 ZIP 下載網址: " input
-  [ -z "$input" ] && echo "❌ 未輸入內容" && return 1
+  [ -z "$input" ] && echo -e "${RED}未輸入內容${RESET}" && return 1
 
   # ---------------------------------------------------
   # 如果是 ZIP 下載網址
   # ---------------------------------------------------
   if [[ "$input" =~ ^https?://.*\.zip$ ]]; then
-    echo "🔽 偵測到為 ZIP 插件連結，開始下載..."
+    echo "偵測到為 ZIP 插件連結，開始下載..."
     tmp_file="/tmp/plugin_$$.zip"
 
     if ! wget -qO "$tmp_file" "$input"; then
-      echo "❌ 下載失敗"
+      echo -e "${RED}下載失敗${RESET}"
       return 1
     fi
 
     if ! unzip -t "$tmp_file" >/dev/null 2>&1; then
-      echo "❌ 下載的檔案不是有效的 ZIP 壓縮檔"
+      echo -e "${RED}下載的檔案不是有效的 ZIP 壓縮檔${RESET}"
       rm -f "$tmp_file"
       return 1
     fi
 
     unzip -q "$tmp_file" -d "$plugin_dir" || {
-      echo "❌ 解壓失敗"
+      echo -e "${RED}解壓失敗${RESET}"
       rm -f "$tmp_file"
       return 1
     }
     rm -f "$tmp_file"
-    echo "✅ 插件已解壓至：$plugin_dir"
+    echo -e "${GREEN}插件已解壓至：$plugin_dir${RESET}"
 
     plugin_slug=$(ls -1 "$plugin_dir" | head -n 1)
     if [ -n "$plugin_slug" ]; then
-      echo "🚀 正在嘗試啟用插件..."
+      echo -e "${GREEN}正在嘗試啟用插件...${RESET}"
       wp --allow-root --path="$site_path" plugin activate "$plugin_slug" 2>/dev/null \
-         && echo "✅ 已啟用插件：$plugin_slug" \
-         || echo "⚠️ 無法自動啟用，請手動啟用插件"
+         && echo -e "${GREEN}已啟用插件：$plugin_slug${RESET}" \
+         || echo -e "${YELLOW}無法自動啟用，請手動啟用插件${RESET}"
     else
-      echo "⚠️ 無法偵測插件目錄，請手動啟用插件"
+      echo -e "${YELLOW}無法偵測插件目錄，請手動啟用插件${RESET}"
     fi
     return 0
   fi
@@ -1835,14 +1829,14 @@ install_wp_plugin_with_search_or_url() {
   # ---------------------------------------------------
   # 插件關鍵字搜尋（使用 JSON 以避免 CSV 問題）
   # ---------------------------------------------------
-  echo "🔍 正在搜尋包含 \"$input\" 的插件..."
+  echo "正在搜尋包含 \"$input\" 的插件..."
 
   mapfile -t plugins < <(
     wp --allow-root --path="$site_path" plugin search "$input" --per-page=10 --format=json | jq -r '.[] | "\(.name)|\(.slug)"'
   )
 
   if [ ${#plugins[@]} -eq 0 ]; then
-    echo "❌ 找不到任何相關插件"
+    echo -e "${RED}找不到任何相關插件${RESET}"
     return 1
   fi
 
@@ -1856,7 +1850,7 @@ install_wp_plugin_with_search_or_url() {
   done
 
   if [ ${#options[@]} -eq 0 ]; then
-    echo "❌ 找不到任何有效插件"
+    echo -e "${RED}找不到任何有效插件${RESET}"
     return 1
   fi
 
@@ -1865,11 +1859,11 @@ install_wp_plugin_with_search_or_url() {
     if [ -n "$opt" ]; then
       idx=$((REPLY - 1))
       slug="${slugs[$idx]}"
-      echo "⬇️ 開始安裝插件：$slug"
+      echo -e "${CYAN}開始安裝插件：$slug${RESET}"
       wp --allow-root --path="$site_path" plugin install "$slug" --activate
       return
     else
-      echo "❌ 無效的選項，請重新選擇"
+      echo -e "${YELLOW}無效的選項，請重新選擇${RESET}"
     fi
   done
 }
@@ -1999,7 +1993,7 @@ install_wpcli_if_needed() {
   fi
 }
 install_phpmyadmin() {
-  echo "🚀 開始安裝 phpMyAdmin ..."
+  echo -e "${CYAN}開始安裝 phpMyAdmin ...${RESET}"
 
   if ! command -v docker >/dev/null 2>&1; then
     echo -e "${RED}您尚未安裝 Docker，請先安裝！${RESET} "
@@ -2008,7 +2002,7 @@ install_phpmyadmin() {
 
   # 檢查容器是否存在
   if docker ps -a --format '{{.Names}}' | grep -q "^myadmin$"; then
-    echo "⚠️ 偵測到已存在名為 myadmin 的容器，將先刪除..."
+    echo -e "${YELLOW}偵測到已存在名為 myadmin 的容器，將先刪除...${RESET}"
     docker rm -f myadmin
   fi
 
@@ -2018,7 +2012,7 @@ install_phpmyadmin() {
 
     if [[ -z "$port" ]]; then
       local port=$(( ( RANDOM % (65535 - 1025) ) + 1025 ))
-      echo "⚙️ 自動選擇隨機端口：$port"
+      echo -e "${CYAN}自動選擇隨機端口：$port${RESET}"
     fi
 
     # 更嚴謹檢測
@@ -2073,7 +2067,7 @@ install_phpmyadmin() {
 
 
 php_install() {
-  echo "🚀 開始安裝 PHP 環境..."
+  echo -e "${CYAN}開始安裝 PHP 環境...${RESET}"
   case $system in
     1)
       local os=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
@@ -2095,11 +2089,11 @@ php_install() {
 
       apt update
 
-      echo "🔍 偵測可用 PHP 版本..."
+      echo -e "${CYAN}偵測可用 PHP 版本...${RESET}"
       local flarum_php_var=$(check_flarum_supported_php)
       local versions=$(apt-cache search ^php[0-9.]+$ | grep -oP '^php\K[0-9.]+' | sort -Vu | awk -F. '$1>=8 {print}')
       if [[ -z "$versions" ]]; then
-        echo -e "${RED}❌ 無法取得 PHP 版本列表，請檢查倉庫是否正常。${RESET}"
+        echo -e "${RED}無法取得 PHP 版本列表，請檢查倉庫是否正常。${RESET}"
         return 1
       fi
 
@@ -2108,7 +2102,7 @@ php_install() {
       read -p "請輸入要安裝的 PHP 版本（例如 8.3）[預設8.3]: " phpver
       phpver=${phpver:-8.3}
       if ! echo "$versions" | grep -qx "$phpver"; then
-        echo -e "${RED}❌ 無效版本號：$phpver{RESET}"
+        echo -e "${RED}無效版本號：$phpver${RESET}"
         return 1
       fi
 
@@ -2130,7 +2124,7 @@ php_install() {
       local php_versions=$(yum module list php | grep -E '^php\s+(remi-)?8\.[0-9]+' | awk '{print $2}' | sed 's/remi-//' | sort -Vu | xargs)
 
       if [[ -z "$php_versions" ]]; then
-        echo -e "${RED}❌ 無法偵測可用 PHP 模組版本。${RESET}"
+        echo -e "${RED}無法偵測可用 PHP 模組版本。${RESET}"
         return 1
       fi
 
@@ -2140,7 +2134,7 @@ php_install() {
       phpver=${phpver:-8.3}
 
       if [[ ! " $php_versions " =~ " $phpver " ]]; then
-        echo -e "${RED}❌ 無效版本號：$phpver${RESET}"
+        echo -e "${RED}無效版本號：$phpver${RESET}"
         return 1
       fi
 
@@ -2180,26 +2174,26 @@ php_install() {
       phpver=${phpver:-8.3}
 
       if ! echo "$phpver" | grep -qE '^8\.[0-9]+$'; then
-        echo -e "${RED}❌ 請輸入有效的 PHP 8.x 版本${RESET}"
+        echo -e "${RED}請輸入有效的 PHP 8.x 版本${RESET}"
         return 1
       fi
 
       local shortver=$(echo "$phpver" | tr -d '.')
 
       if ! echo "$available_versions" | grep -q "^8\.${shortver:1}$"; then
-        echo -e "${RED}❌ Edge 倉庫中找不到 php$shortver，請確認版本是否正確${RESET}"
+        echo -e "${RED}Edge 倉庫中找不到 php$shortver，請確認版本是否正確${RESET}"
         return 1
       fi
       
       if ! apk add --simulate php$shortver>/dev/null 2>&1; then
-        echo "您好，您的php版本$phpver無法安裝"
+        echo -e "${RED}您好，您的php版本$phpver無法安裝${RESET}"
         return 1
       fi
 
       apk add php$shortver php$shortver-fpm php$shortver-mysqli php$shortver-curl \
         php$shortver-gd php$shortver-xml php$shortver-mbstring php$shortver-zip \
         php$shortver-intl php$shortver-bcmath php$shortver-pecl-imagick php$shortver-phar unzip redis || {
-          echo "❌ 安裝失敗，請確認版本是否存在於 Edge 社群源。"
+          echo -e "${RED}安裝失敗，請確認版本是否存在於 Edge 社群源。${RESET}"
           return 1
         }
 
@@ -2250,7 +2244,7 @@ php_fix(){
 
 
 php_switch_version() {
-  echo "🔄 開始 PHP 升級/降級程序..."
+  echo -e "${CYAN}開始 PHP 升級/降級程序...${RESET}"
   case $system in
   1)
     oldver=$(check_php_version)
@@ -2304,13 +2298,9 @@ php_switch_version() {
     3)
       mapfile -t exts < <(apk info | grep "^php$shortold-" | sed "s/php$shortold-//" | grep -vE '^(fpm|cli|common)$')
       ;;
-    *)
-      echo "不支援的系統"
-      return 1
-      ;;
   esac
 
-  echo "🔌 已偵測的擴充模組：${exts[*]:-無}"
+  echo -e "${CYAN}已偵測的擴充模組：${exts[*]:-無}${RESET}"
   
   case $system in
   3)
@@ -2322,7 +2312,7 @@ php_switch_version() {
     ;;
   esac
 
-  echo "⛔ 停止 PHP 與 Web 服務..."
+  echo -e "${CYAN}停止 PHP 與 Web 服務...${RESET}"
   case $system in
     1)
       systemctl stop php$oldver-fpm 2>/dev/null
@@ -2343,7 +2333,7 @@ php_switch_version() {
       ;;
   esac
 
-  echo "🧹 移除舊版 PHP..."
+  echo -e "${CYAN}移除舊版 PHP...${RESET}"
   case $system in
     1)
       apt purge -y php$oldver* ;;
@@ -2351,9 +2341,9 @@ php_switch_version() {
       yum module reset php -y
       mapfile -t php_packages < <(rpm -qa | grep "^php-" | awk '{print $1}')
       if [[ ${#php_packages[@]} -eq 0 ]]; then
-        echo "⚠️ 未發現任何 PHP 套件可移除。"
+        echo -e "${YELLOW}未發現任何 PHP 套件可移除。${RESET}"
       else
-        echo "🔻 即將移除下列 PHP 套件："
+        echo -e "${CYAN}即將移除下列 PHP 套件：${RESET}"
         printf ' - %s\n' "${php_packages[@]}"
         yum remove -y --noautoremove "${php_packages[@]}"
       fi
@@ -2362,7 +2352,7 @@ php_switch_version() {
       apk del php$shortold* ;;
   esac
 
-  echo "⬇️ 安裝新版 PHP：$newver"
+  echo -e "${CYAN}安裝新版 PHP：$newver${RESET}"
   case $system in
     1)
       apt install php$newver php$newver-fpm -y
@@ -2376,7 +2366,7 @@ php_switch_version() {
       ;;
   esac
 
-  echo "📦 重新安裝擴充模組..."
+  echo -e "${CYAN}重新安裝擴充模組...${RESET}"
   for ext in "${exts[@]}"; do
     echo " - 重新安裝模組：$ext"
     case $system in
@@ -2386,7 +2376,7 @@ php_switch_version() {
     esac
   done
 
-  echo "🚀 重新啟動服務..."
+  echo -e "${CYAN}重新啟動服務...${RESET}"
   case $system in
     1)
       systemctl enable php$newver-fpm
@@ -2406,7 +2396,7 @@ php_switch_version() {
   esac
   php_fix
 
-  echo "✅ PHP 升級/降級完成（從 $oldver → $newver）"
+  echo -e "${GREEN}PHP 升級/降級完成（從 $oldver → $newver）${RESET}"
 }
 
 
@@ -2452,7 +2442,7 @@ php_tune_upload_limit() {
   sed -i "s/^\s*post_max_size\s*=.*/post_max_size = $post_size/" "$php_ini"
   sed -i "s/^\s*memory_limit\s*=.*/memory_limit = $memory_limit/" "$php_ini"
 
-  echo "✅ 已設定："
+  echo -e "${GREEN}已設定：${RESET}"
   echo "  - upload_max_filesize = $max_upload"
   echo "  - post_max_size = $post_size"
   echo "  - memory_limit = $memory_limit"
@@ -2466,7 +2456,7 @@ php_tune_upload_limit() {
     rc-service php-fpm$php_var restart
   fi
 
-  echo "✅ PHP FPM 已重新啟動"
+  echo -e "${GREEN}PHP FPM 已重新啟動${RESET}"
 }
 
 php_install_extensions() {
@@ -2478,18 +2468,18 @@ php_install_extensions() {
     return 1
   fi
 
-  echo -n "🔍 檢查 PHP 擴展：$ext_name ... "
+  echo -en "${CYAN}檢查 PHP 擴展：$ext_name ... ${RESET}"
   if php -m | grep -Fxiq -- "$ext_name"; then
-    echo "✅ 已安裝"
+    echo -e "${GREEN}已安裝${RESET}"
     return 0
   fi
 
   if ! check_php_ext_available "$ext_name" "$php_var"; then
-    echo "❌ 擴展 $ext_name 不存在於倉庫，無法安裝"
+    echo -e "${RED}擴展 $ext_name 不存在於倉庫，無法安裝${RESET}"
     return 1
   fi
 
-  echo "📦 倉庫中找到 $ext_name，開始安裝..."
+  echo "倉庫中找到 $ext_name，開始安裝..."
 
   case $system in
     1)
@@ -2513,9 +2503,9 @@ php_install_extensions() {
   esac
 
   if php -m | grep -Fxiq -- "$ext_name"; then
-    echo "✅ PHP 擴展 $ext_name 安裝成功。"
+    echo -e "${GREEN}PHP 擴展 $ext_name 安裝成功。${RESET}"
   else
-    echo "❌ PHP 擴展 $ext_name 安裝失敗，請檢查錯誤訊息。"
+    echo -e "${RED}PHP 擴展 $ext_name 安裝失敗，請檢查錯誤訊息。${RESET}"
     return 1
   fi
 }
@@ -2559,54 +2549,12 @@ restart_nginx_openresty() {
   fi
 }
 
-# 只列出有自動備份排程的網站，讓用戶選擇移除
-remove_site_backup_cron() {
-  echo "============【 移除網站自動備份排程 】============"
-  local crontab_lines
-  crontab_lines=$(crontab -l 2>/dev/null | grep '/var/www/' || true)
-  if [[ -z "$crontab_lines" ]]; then
-    echo "❌ 目前沒有任何網站有自動備份排程。"
-    return 1
-  fi
-  # 從 crontab 取唯一網站
-  local sites=()
-  while read -r line; do
-    site=$(echo "$line" | grep -o '/var/www/[^ ]*' | awk -F/ '{print $4}')
-    [[ -n "$site" ]] && sites+=("$site")
-  done <<< "$(echo "$crontab_lines" | sort | uniq)"
-  # 去重
-  local uniq_sites=()
-  local seen=""
-  for s in "${sites[@]}"; do
-    [[ "$seen" =~ " $s " ]] || uniq_sites+=("$s")
-    seen+=" $s "
-  done
-  if [[ ${#uniq_sites[@]} -eq 0 ]]; then
-    echo "❌ 沒有偵測到任何網站有自動備份排程。"
-    return 1
-  fi
-  echo "可移除排程的網站："
-  local i=1
-  for site in "${uniq_sites[@]}"; do
-    echo "  [$i] $site"
-    ((i++))
-  done
-  read -p "請輸入要移除排程的網站編號：" idx
-  if [[ ! "$idx" =~ ^[0-9]+$ ]] || (( idx < 1 || idx > ${#uniq_sites[@]} )); then
-    echo "❌ 輸入無效，取消操作。"
-    return 1
-  fi
-  local domain="${uniq_sites[$((idx-1))]}"
-  crontab -l 2>/dev/null | grep -v "/var/www/$domain" | crontab -
-  echo "✅ 已移除 $domain 的自動備份排程（不影響現有備份檔案）。"
-}
-
 remove_wp_plugin_with_menu() {
   local domain="$1"
   local site_path="/var/www/$domain"
   local plugin_dir="$site_path/wp-content/plugins"
 
-  echo "🔍 正在偵測已安裝的插件..."
+  echo -e "${CYAN}正在偵測已安裝的插件...${RESET}"
 
   # 只抓目錄 (真正的 plugins)
   mapfile -t plugin_folders < <(
@@ -2614,7 +2562,7 @@ remove_wp_plugin_with_menu() {
   )
 
   if [ ${#plugin_folders[@]} -eq 0 ]; then
-    echo "✅ 此網站沒有安裝任何插件"
+    echo -e "${YELLOW}此網站沒有安裝任何插件${RESET}"
     return 0
   fi
 
@@ -2632,16 +2580,60 @@ remove_wp_plugin_with_menu() {
   select opt in "${options[@]}"; do
     if [ -n "$opt" ]; then
       slug=$(echo "$opt" | awk '{print $1}')
-      echo "🗑 正在移除插件：$slug"
+      echo -e "${CYAN}正在移除插件：$slug${RESET}"
       wp --allow-root --path="$site_path" plugin deactivate "$slug"
       wp --allow-root --path="$site_path" plugin delete "$slug"
-      echo "✅ 插件已刪除：$slug"
+      echo -e "${GREEN}插件已刪除：$slug${RESET}"
       return
     else
-      echo "❌ 無效的選項，請重新選擇"
+      echo -e "${RED}無效的選項，請重新選擇${RESET}"
     fi
   done
 }
+
+# 只列出有自動備份排程的網站，讓用戶選擇移除
+remove_site_backup_cron() {
+  echo "============【 移除網站自動備份排程 】============"
+  local crontab_lines
+  crontab_lines=$(crontab -l 2>/dev/null | grep '/var/www/' || true)
+  if [[ -z "$crontab_lines" ]]; then
+    echo -e "${RED}目前沒有任何網站有自動備份排程。${RESET}"
+    return 1
+  fi
+  # 從 crontab 取唯一網站
+  local sites=()
+  while read -r line; do
+    site=$(echo "$line" | grep -o '/var/www/[^ ]*' | awk -F/ '{print $4}')
+    [[ -n "$site" ]] && sites+=("$site")
+  done <<< "$(echo "$crontab_lines" | sort | uniq)"
+  # 去重
+  local uniq_sites=()
+  local seen=""
+  for s in "${sites[@]}"; do
+    [[ "$seen" =~ " $s " ]] || uniq_sites+=("$s")
+    seen+=" $s "
+  done
+  if [[ ${#uniq_sites[@]} -eq 0 ]]; then
+    echo -e "${RED}沒有偵測到任何網站有自動備份排程。${RESET}"
+    return 1
+  fi
+  echo "可移除排程的網站："
+  local i=1
+  for site in "${uniq_sites[@]}"; do
+    echo "  [$i] $site"
+    ((i++))
+  done
+  read -p "請輸入要移除排程的網站編號：" idx
+  if [[ ! "$idx" =~ ^[0-9]+$ ]] || (( idx < 1 || idx > ${#uniq_sites[@]} )); then
+    echo -e "${RED}輸入無效，取消操作。${RESET}"
+    return 1
+  fi
+  local domain="${uniq_sites[$((idx-1))]}"
+  crontab -l 2>/dev/null | grep -v "/var/www/$domain" | crontab -
+  echo -e "${GREEN}已移除 $domain 的自動備份排程（不影響現有備份檔案）。${RESET}"
+}
+
+
 
 reset_wp_site() {
   local domain="$1"
@@ -2650,29 +2642,29 @@ reset_wp_site() {
 
   # 檢查該路徑是否是 WordPress
   if [ ! -f "$path/wp-config.php" ]; then
-    echo "❌ $domain 不是 WordPress 網站！"
+    echo -e "${RED}$domain 不是 WordPress 網站！${RESET}"
     return 1
   fi
 
-  echo "🚨 正在對 $domain 執行 WordPress 緊急重置..."
+  echo -e "${CYAN}正在對 $domain 執行 WordPress 緊急重置...${RESET}"
 
   # 停用全部外掛
   $wp_cli plugin deactivate --all --path="$path" || \
-    echo "⚠️ 停用外掛失敗。"
+    echo -e "${YELLOW}停用外掛失敗。${RESET}"
 
   # 嘗試找預設主題
   default_theme=$($wp_cli theme list --path="$path" --status=inactive --field=name | grep -E '^twenty' | head -n 1)
 
   if [ -z "$default_theme" ]; then
-    echo "⚠️ 未發現預設佈景主題，嘗試安裝 Twenty Twenty-Four..."
+    echo -e "${YELLOW}未發現預設佈景主題，嘗試安裝 Twenty Twenty-Four...${RESET}"
     $wp_cli theme install twentytwentyfour --path="$path"
     default_theme="twentytwentyfour"
   fi
 
   $wp_cli theme activate "$default_theme" --path="$path" || \
-    echo "⚠️ 切換佈景主題失敗。"
+    echo -e "${YELLOW}切換佈景主題失敗。${RESET}"
 
-  echo "✅ $domain 已完成緊急重置。可嘗試重新登入後台。"
+  echo -e "${GREEN}$domain 已完成緊急重置。可嘗試重新登入後台。${RESET}"
 }
 
 
@@ -2684,14 +2676,14 @@ restore_site_files() {
   read -p "請輸入備份檔路徑 (.tar.gz / .zip)：" archive
 
   if [[ ! -f "$archive" ]]; then
-    echo "⚠️ 檔案不存在：$archive"
+    echo -e "${RED}檔案不存在：$archive${RESET}"
     return 1
   fi
 
-  echo "📂 準備還原至：$dest_dir"
+  echo -e "${CYAN}準備還原至：$dest_dir${RESET}"
 
   if [[ -d "$dest_dir" ]]; then
-    read -p "⚠️ 目錄已存在，是否清空目錄後還原？(y/N)：" yn
+    read -p "目錄已存在，是否清空目錄後還原？(y/N)：" yn
     case "$yn" in
       [Yy]* ) rm -rf "$dest_dir"/* ;;
       * ) echo "已取消還原。"; return 0 ;;
@@ -2700,30 +2692,30 @@ restore_site_files() {
 
   mkdir -p "$dest_dir"
 
-  echo "🔄 正在解壓 $archive ..."
+  echo -e "${CYAN}正在解壓 $archive ...${RESET}"
   if [[ "$archive" == *.tar.gz ]]; then
     tar -xzf "$archive" -C "$dest_dir"
   elif [[ "$archive" == *.zip ]]; then
     unzip -q "$archive" -d "$dest_dir"
   else
-    echo "❌ 不支援的壓縮格式"
+    echo -e "${RED}不支援的壓縮格式${RESET}"
     return 1
   fi
 
-  echo "✅ [$mode] 檔案還原完成！"
+  echo -e "${GREEN}[$mode] 檔案還原完成！${RESET}"
 
   # 根據 system 呼叫不同的 DB restore
   case "$mode" in
     wp)
-      echo "🔁 WordPress 檔案已還原，繼續執行 WordPress 資料庫還原..."
+      echo -e "${CYAN}WordPress 檔案已還原，繼續執行 WordPress 資料庫還原...${RESET}"
       restore_site_db "$mode" "$domain"
       ;;
     flarum)
-      echo "🔁 Flarum 檔案已還原，繼續執行 Flarum 資料庫還原..."
+      echo -e "${CYAN}Flarum 檔案已還原，繼續執行 Flarum 資料庫還原...${RESET}"
       restore_site_db "$mode" "$domain"
       ;;
     *)
-      echo "⚠️ 尚未支援系統：$mode"
+      echo -e "${YELLOW}尚未支援系統：$mode${RESET}"
       ;;
   esac
 }
@@ -2739,7 +2731,7 @@ restore_site_db() {
   if [[ "$type" == "wp" ]]; then
     local config="$site_path/wp-config.php"
     if [[ ! -f "$config" ]]; then
-      echo "❌ 找不到 wp-config.php"
+      echo -e "${RED}找不到 wp-config.php${RESET}"
       return 1
     fi
 
@@ -2753,10 +2745,10 @@ restore_site_db() {
     local sql_files=("$site_path"/*.sql)
     if [[ ${#sql_files[@]} -gt 0 && -f "${sql_files[0]}" ]]; then
       backup_file="${sql_files[0]}"
-      echo "🔍 發現資料庫備份檔: $backup_file"
+      echo "發現資料庫備份檔: $backup_file"
       read -p "是否要自動還原此檔案？[Y/n] " confirm
       if [[ "$confirm" != [nN] ]]; then
-        echo "🔄 開始自動還原..."
+        echo "開始自動還原..."
       else
         backup_file=""
       fi
@@ -2765,7 +2757,7 @@ restore_site_db() {
   elif [[ "$type" == "flarum" ]]; then
     local config="$site_path/config.php"
     if [[ ! -f "$config" ]]; then
-      echo "❌ 找不到 config.php"
+      echo -e "${RED}找不到 config.php${RESET}"
       return 1
     fi
 
@@ -2782,19 +2774,19 @@ restore_site_db() {
       echo \$c['database']['password'] ?? '';
     ")
   else
-    echo "❌ 不支援的類型：$type"
+    echo -e "${RED}不支援的類型：$type${RESET}"
     return 1
   fi
 
   if [[ -z "$db_name" || -z "$db_user" ]]; then
-    echo "❌ 無法讀取 DB 設定"
+    echo -e "${RED}無法讀取 DB 設定${RESET}"
     return 1
   fi
 
   if [[ -z "$backup_file" ]]; then
     read -p "請輸入備份檔路徑 (.sql)：" backup_file
     if [[ ! -f "$backup_file" ]]; then
-      echo "⚠️ 檔案不存在：$backup_file"
+      echo -e "${RED}檔案不存在：$backup_file${RESET}"
       return 1
     fi
   fi
@@ -2811,55 +2803,55 @@ restore_site_db() {
       mysql_cmd="mysql -uroot -p$mysql_root_pass"
     fi
     if ! $mysql_cmd -e ";" &>/dev/null; then
-      echo "❌ 無法登入 MySQL"
+      echo -e "${RED}無法登入 MySQL${RESET}"
       return 1
     fi
   fi
 
-  echo "🔍 檢查資料庫是否存在：$db_name"
+  echo "檢查資料庫是否存在：$db_name"
   if ! $mysql_cmd -e "USE \`$db_name\`;" 2>/dev/null; then
-    echo "⚠️ 資料庫 $db_name 不存在，將自動建立..."
+    echo "資料庫 $db_name 不存在，將自動建立..."
     $mysql_cmd -e "CREATE DATABASE IF NOT EXISTS \`$db_name\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
   else
-    echo "⚠️ 資料庫已存在，清空所有資料表..."
+    echo "資料庫已存在，清空所有資料表..."
     local tables=$($mysql_cmd -N -e "SHOW TABLES FROM \`$db_name\`;")
     for table in $tables; do
-      echo "🧹 刪除表：$table"
+      echo "刪除表：$table"
       $mysql_cmd -e "DROP TABLE \`$db_name\`.\`$table\`;"
     done
-    echo "✅ 已清空資料表"
+    echo -e "${GREEN}已清空資料表${RESET}"
   fi
 
-  echo "🚀 匯入資料中..."
+  echo -e "${CYAN}匯入資料中...${RESET}"
   $mysql_cmd "$db_name" < "$backup_file"
 
   # 匯入後檢查
   local tables_after=$($mysql_cmd -N -e "SHOW TABLES FROM \`$db_name\`;")
   if [[ -z "$tables_after" ]]; then
-    echo "⚠️ 匯入後資料表為空，請檢查 SQL 檔或 DB 權限！"
+    echo -e "${RED}匯入後資料表為空，請檢查 SQL 檔或 DB 權限！${RESET}"
     return 1
   fi
 
   # 建立 user 並授權
   local user_exists=$($mysql_cmd -N -e "SELECT User FROM mysql.user WHERE User='$db_user';")
   if [[ -z "$user_exists" ]]; then
-    echo "⚠️ 使用者 $db_user 不存在，將自動建立..."
+    echo -e "${YELLOW}使用者 $db_user 不存在，將自動建立...${RESET}"
     $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
   fi
 
   local grants=$($mysql_cmd -N -e "SHOW GRANTS FOR '$db_user'@'localhost';" | grep "\`$db_name\`")
   if [[ -z "$grants" ]]; then
-    echo "⚠️ 使用者 $db_user 尚未擁有 $db_name 權限，將授權..."
+    echo -e "${YELLOW}使用者 $db_user 尚未擁有 $db_name 權限，將授權...${RESET}"
     $mysql_cmd -e "GRANT ALL PRIVILEGES ON \`$db_name\`.* TO '$db_user'@'localhost' IDENTIFIED BY '$db_pass'; FLUSH PRIVILEGES;"
   fi
 
   # 如果是自動偵測的備份檔，還原後刪除
   if [[ "$backup_file" == "$site_path/"*.sql ]]; then
-    echo "🧹 刪除已還原的備份檔: $backup_file"
+    echo "刪除已還原的備份檔: $backup_file"
     rm -f "$backup_file"
   fi
 
-  echo "✅ $type 資料庫 [$db_name] 還原完成"
+  echo -e "${GREEN}✅ $type 資料庫 [$db_name] 還原完成${RESET}"
 }
 
 
@@ -2892,7 +2884,7 @@ setup_site_http2(){
       "$conf_file"
 
 
-    echo "✅ 已刪除 $conf_file 中所有 HTTP/3 / QUIC 相關配置，並啟用 HTTP/2"
+    echo -e "${GREEN}已刪除 $conf_file 中所有 HTTP/3 / QUIC 相關配置，並啟用 HTTP/2${RESET}"
   fi
 }
 
@@ -3135,6 +3127,8 @@ show_cert_status() {
     done
   fi
 }
+
+
 
 show_httpguard_status(){
 
@@ -3483,16 +3477,16 @@ toggle_httpguard_module() {
   sed -i "/^\s*${module_name}\s*=/ s/state\s*=\s*\"[^\"]*\"/state = \"$new_state\"/" "$config_file"
 
   if [ $? -eq 0 ]; then
-    echo "✅ 模組 [$module_name] 狀態已更新為 [$new_state]。"
+    echo -e "${GREEN}模組 [$module_name] 狀態已更新為 [$new_state]。${RESET}"
     echo "正在重啟 Nginx/OpenResty 以應用變更..."
     restart_nginx_openresty
     if [ $? -eq 0 ]; then
-      echo "✅ Nginx/OpenResty 已重啟成功。"
+      echo -e "${GREEN}Nginx/OpenResty 已重啟成功。${RESET}"
     else
-      echo "❌ Nginx/OpenResty 重啟失敗，請手動檢查配置。"
+      echo -e "${RED}Nginx/OpenResty 重啟失敗，請手動檢查配置。${RESET}"
     fi
   else
-    echo "❌ 更新模組 [$module_name] 狀態失敗。"
+    echo -e "${RED}更新模組 [$module_name] 狀態失敗。${RESET}"
   fi
 }
 
@@ -3515,44 +3509,44 @@ update_script() {
   local current_script="/usr/local/bin/site"
   local current_path="$0"
 
-  echo "🔍 正在檢查更新..."
+  echo "正在檢查更新..."
   wget -q "$download_url" -O "$temp_path"
   if [ $? -ne 0 ]; then
-    echo "❌ 無法下載最新版本，請檢查網路連線。"
+    echo -e "${RED}無法下載最新版本，請檢查網路連線。${RESET}"
     return
   fi
 
   # 比較檔案差異
   if [ -f "$current_script" ]; then
     if diff "$current_script" "$temp_path" >/dev/null; then
-      echo "✅ 腳本已是最新版本，無需更新。"
+      echo -e "${GREEN}腳本已是最新版本，無需更新。${RESET}"
       rm -f "$temp_path"
       return
     fi
-    echo "📦 檢測到新版本，正在更新..."
+    echo "正在更新..."
     cp "$temp_path" "$current_script" && chmod +x "$current_script"
     if [ $? -eq 0 ]; then
-      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
+      echo -e "${GREEN}更新成功！將自動重新啟動腳本以套用變更...${RESET}"
       sleep 1
       exec "$current_script"
     else
-      echo "❌ 更新失敗，請確認權限。"
+      echo -e "${RED}更新失敗，請確認權限。${RESET}"
     fi
   else
     # 非 /usr/local/bin 執行時 fallback 為當前檔案路徑
     if diff "$current_path" "$temp_path" >/dev/null; then
-      echo "✅ 腳本已是最新版本，無需更新。"
+      echo -e "${GREEN}腳本已是最新版本，無需更新。${RESET}"
       rm -f "$temp_path"
       return
     fi
-    echo "📦 檢測到新版本，正在更新..."
+    echo "檢測到新版本，正在更新..."
     cp "$temp_path" "$current_path" && chmod +x "$current_path"
     if [ $? -eq 0 ]; then
-      echo "✅ 更新成功！將自動重新啟動腳本以套用變更..."
+      echo -e "${GREEN}更新成功！將自動重新啟動腳本以套用變更...${RESET}"
       sleep 1
       exec "$current_path"
     else
-      echo "❌ 更新失敗，請確認權限。"
+      echo -e "${RED}更新失敗，請確認權限。${RESET}"
     fi
   fi
 
@@ -4284,10 +4278,10 @@ case "$1" in
     ;;
 esac
 
-
 # 主循環
 while true; do
   conf_file=""
+  domain=""
   clear
   show_menu
   read -r choice
@@ -4340,7 +4334,7 @@ while true; do
       ;;
     9)
       if ! command -v docker_mgr >/dev/null 2>&1; then
-        bash <(curl -sL https://gitlab.com/gebu8f/sh/-/raw/main/docker/install.sh)
+        bash <(curl -sL https://raw.githubusercontent.com/gebu8f8/docker_sh/refs/heads/main/install.sh)
       else
         docker_mgr
       fi
