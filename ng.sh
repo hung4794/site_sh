@@ -12,7 +12,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # 版本
-version="6.6.0"
+version="6.7.0"
 
 
 # 顏色定義
@@ -1355,10 +1355,10 @@ deploy_or_remove_theme() {
 }
 enable_mysql_remote_root() {
   echo "啟用 MySQL / MariaDB root 遠端登入..."
-  local mysql_cmd=$(get_mysql_command)
+  get_mysql_command
 
   # 確認版本
-  local version=$($mysql_cmd -N -e "SELECT VERSION();" | head -n 1)
+  local version=$("${MYSQL_CMD[@]}" -N -e "SELECT VERSION();" | head -n 1)
   echo "偵測到版本：$version"
 
   if [[ "$version" == *MariaDB* ]]; then
@@ -1380,7 +1380,7 @@ enable_mysql_remote_root() {
   echo -e "${GREEN}資料庫已重新啟動${RESET}"
 
   # 檢查是否已有 root@%
-  local exists=$($mysql_cmd -N -e "SELECT COUNT(*) FROM mysql.user WHERE User='root' AND Host='%';")
+  local exists=$("${MYSQL_CMD[@]}" -N -e "SELECT COUNT(*) FROM mysql.user WHERE User='root' AND Host='%';")
   if [[ "$exists" -eq 0 ]]; then
     # 要求輸入強密碼
     while :; do
@@ -1409,9 +1409,9 @@ enable_mysql_remote_root() {
     done
 
     echo -e "${CYAN}建立 root@% 帳戶...${RESET}"
-    $mysql_cmd -e "CREATE USER 'root'@'%' IDENTIFIED BY '$new_pass';"
-    $mysql_cmd -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
-    $mysql_cmd -e "FLUSH PRIVILEGES;"
+    "${MYSQL_CMD[@]}" -e "CREATE USER 'root'@'%' IDENTIFIED BY '$new_pass';"
+    "${MYSQL_CMD[@]}" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+    "${MYSQL_CMD[@]}" -e "FLUSH PRIVILEGES;"
     echo -e "${GREEN}已建立 root@% 並授予權限${RESET}"
   else
     echo -e "${YELLOW}root@% 帳戶已存在，跳過建立${RESET}"
@@ -1474,17 +1474,14 @@ flarum_setup() {
     fi
   }
 
-  # MySQL 自動登入邏輯
-  local mysql_cmd=$(mysql_command)
-
   local db_name="flarum_${domain//./_}"
   local db_user="${db_name}_user"
   local db_pass=$(openssl rand -hex 12)
 
-  $mysql_cmd -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-  $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
-  $mysql_cmd -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
-  $mysql_cmd -e "FLUSH PRIVILEGES;"
+  "${MYSQL_CMD[@]}" -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  "${MYSQL_CMD[@]}" -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
+  "${MYSQL_CMD[@]}" -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+  "${MYSQL_CMD[@]}" -e "FLUSH PRIVILEGES;"
 
   # 下載 Flarum
   mkdir -p /var/www/$domain
@@ -1597,28 +1594,25 @@ get_nginx_run_user() {
   fi
 }
 
+# 全域變數 MYSQL_CMD（陣列）將會被設定為 mysql 指令
+MYSQL_CMD=()
+
 get_mysql_command() {
-    local mysql_command=""
     local mysql_root_pw=""
     local pass_file="/etc/mysql-pass.conf"
 
     # 嘗試無密碼登入
     if mysql -u root -e "SELECT 1;" &>/dev/null; then
-        mysql_command="mysql -u root"
-        echo "$mysql_command"
+        MYSQL_CMD=("mysql" "-u" "root")
         return 0
     fi
 
     # 嘗試讀取 /etc/mysql-pass.conf
     if [ -f "$pass_file" ]; then
-        mysql_root_pw=$(cat "$pass_file")
+        mysql_root_pw=$(< "$pass_file")
         if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
-            mysql_command="mysql -u root -p$mysql_root_pw"
-            >&2 echo -e "${GREEN}使用 /etc/mysql-pass.conf 登入 MySQL${RESET}"
-            echo "$mysql_command"
+            MYSQL_CMD=("mysql" "-u" "root" "-p$mysql_root_pw")
             return 0
-        else
-            >&2 echo -e "${YELLOW}/etc/mysql-pass.conf 內的密碼無效，將要求重新輸入。${RESET}"
         fi
     fi
 
@@ -1632,21 +1626,18 @@ get_mysql_command() {
         fi
 
         if mysql -u root -p"$mysql_root_pw" -e "SELECT 1;" &>/dev/null; then
-            mysql_command="mysql -u root -p$mysql_root_pw"
             >&2 echo -e "${GREEN}密碼正確，已成功登入 MySQL${RESET}"
-
-            # 寫入檔案
             echo "$mysql_root_pw" > "$pass_file"
             chmod 600 "$pass_file"
             >&2 echo -e "${GREEN}已將 root 密碼寫入 $pass_file (權限 600)${RESET}"
-
-            echo "$mysql_command"
+            MYSQL_CMD=("mysql" "-u" "root" "-p$mysql_root_pw")
             return 0
         else
             >&2 echo -e "${RED}密碼錯誤，請再試一次。${RESET}"
         fi
     done
 }
+
 
 
 html_sites(){
@@ -3606,7 +3597,6 @@ wordpress_site() {
   local MY_IP=$(curl -s https://api64.ipify.org)
   local HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" --max-time 3 https://wordpress.org)
   local ngx_user=$(get_nginx_run_user)
-  local mysql_command=$(get_mysql_command)
 
   if [[ "$HTTP_CODE" == "200" ]]; then
     echo "您的IP地址支持訪問 WordPress。"
@@ -3644,8 +3634,6 @@ wordpress_site() {
     fi
   }
 
-  # MySQL 自動登入邏輯
-  local mysql_cmd=$(mysql_command)
   
   read -p "是否還原現有的wp文件？(Y/N): " restore_file
   restore_file=${restore_file,,}
@@ -3663,10 +3651,10 @@ wordpress_site() {
   local db_user="${db_name}_user"
   local db_pass=$(openssl rand -hex 12)
 
-  $mysql_cmd -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-  $mysql_cmd -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
-  $mysql_cmd -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
-  $mysql_cmd -e "FLUSH PRIVILEGES;"
+  "${MYSQL_CMD[@]}" -e "CREATE DATABASE $db_name DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  "${MYSQL_CMD[@]}" -e "CREATE USER '$db_user'@'localhost' IDENTIFIED BY '$db_pass';"
+  "${MYSQL_CMD[@]}" -e "GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';"
+  "${MYSQL_CMD[@]}" -e "FLUSH PRIVILEGES;"
 
   # 設定 wp-config.php
   cp "/var/www/$domain/wp-config-sample.php" "/var/www/$domain/wp-config.php"
